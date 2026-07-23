@@ -385,29 +385,14 @@ function ProductMock({ shadow = false }: { shadow?: boolean }) {
 }
 
 function TrustBar() {
-  const brands = [
-    "Amazon FBA",
-    "Shopify",
-    "eBay",
-    "Etsy",
-    "Walmart Marketplace",
-    "WooCommerce",
-  ];
   return (
     <section className="border-y border-border/60 bg-muted/40 py-10">
       <div className="mx-auto max-w-7xl px-6">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Formatted for all major marketplaces
         </p>
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
-          {brands.map((b) => (
-            <span
-              key={b}
-              className="font-display text-sm font-bold tracking-tight text-foreground/70"
-            >
-              {b}
-            </span>
-          ))}
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-12 gap-y-6 text-foreground/50">
+          <MarketplaceLogos />
         </div>
         <p className="mt-6 text-center text-sm text-muted-foreground">
           <Zap className="mr-1 inline h-4 w-4 text-primary" />
@@ -416,6 +401,337 @@ function TrustBar() {
         </p>
       </div>
     </section>
+  );
+}
+
+function MarketplaceLogos() {
+  const common =
+    "h-7 w-auto opacity-70 grayscale transition-all hover:opacity-100 hover:grayscale-0";
+  return (
+    <>
+      {/* Amazon */}
+      <svg viewBox="0 0 120 36" className={common} aria-label="Amazon">
+        <text
+          x="0"
+          y="26"
+          fontFamily="Inter, sans-serif"
+          fontSize="26"
+          fontWeight="700"
+          fill="currentColor"
+        >
+          amazon
+        </text>
+        <path
+          d="M6 30 C 30 40, 80 40, 108 30"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          fill="none"
+          strokeLinecap="round"
+        />
+        <path d="M104 26 l6 4 -6 4 z" fill="currentColor" />
+      </svg>
+      {/* Shopify */}
+      <svg viewBox="0 0 130 36" className={common} aria-label="Shopify">
+        <path
+          d="M18 6c-2 0-4 1-5 3-1-1-3-2-4-1-2 1-3 5-4 9l-3 14 12 3 4-28z"
+          fill="currentColor"
+        />
+        <text
+          x="28"
+          y="26"
+          fontFamily="Inter, sans-serif"
+          fontSize="22"
+          fontWeight="700"
+          fill="currentColor"
+        >
+          shopify
+        </text>
+      </svg>
+      {/* eBay */}
+      <svg viewBox="0 0 90 36" className={common} aria-label="eBay">
+        <text
+          x="0"
+          y="28"
+          fontFamily="Inter, sans-serif"
+          fontSize="28"
+          fontWeight="800"
+          fill="currentColor"
+        >
+          ebay
+        </text>
+      </svg>
+      {/* Etsy */}
+      <svg viewBox="0 0 80 36" className={common} aria-label="Etsy">
+        <text
+          x="0"
+          y="28"
+          fontFamily="Georgia, serif"
+          fontSize="28"
+          fontStyle="italic"
+          fontWeight="700"
+          fill="currentColor"
+        >
+          Etsy
+        </text>
+      </svg>
+      {/* Walmart */}
+      <svg viewBox="0 0 140 36" className={common} aria-label="Walmart">
+        <g transform="translate(4,4)" fill="currentColor">
+          {[0, 45, 90, 135].map((r) => (
+            <rect
+              key={r}
+              x="12"
+              y="2"
+              width="2.5"
+              height="10"
+              rx="1"
+              transform={`rotate(${r} 13 13)`}
+            />
+          ))}
+        </g>
+        <text
+          x="34"
+          y="26"
+          fontFamily="Inter, sans-serif"
+          fontSize="22"
+          fontWeight="700"
+          fill="currentColor"
+        >
+          Walmart
+        </text>
+      </svg>
+      {/* WooCommerce */}
+      <svg viewBox="0 0 160 36" className={common} aria-label="WooCommerce">
+        <rect x="0" y="8" width="30" height="20" rx="4" fill="currentColor" opacity="0.85" />
+        <text
+          x="4"
+          y="23"
+          fontFamily="Inter, sans-serif"
+          fontSize="12"
+          fontWeight="800"
+          fill="var(--background)"
+        >
+          Woo
+        </text>
+        <text
+          x="36"
+          y="26"
+          fontFamily="Inter, sans-serif"
+          fontSize="20"
+          fontWeight="700"
+          fill="currentColor"
+        >
+          WooCommerce
+        </text>
+      </svg>
+    </>
+  );
+}
+
+function UseCases() {
+  const tabs = [
+    {
+      id: "sellers",
+      label: "Amazon & E-Commerce Sellers",
+      bullets: [
+        "100% Amazon algorithm compliant",
+        "Instant 1000×1000px square frame fill",
+        "Batch export for whole catalogs",
+      ],
+    },
+    {
+      id: "agencies",
+      label: "Agencies & Freelancers",
+      bullets: [
+        "Bulk processing up to 50 photos in seconds",
+        "High-res PNG export",
+        "Commercial usage rights included",
+      ],
+    },
+    {
+      id: "photographers",
+      label: "Product Photographers",
+      bullets: [
+        "Clean object isolation without halos",
+        "Real soft shadow generation",
+        "Ultra-fast client deliverables",
+      ],
+    },
+  ];
+  return (
+    <section className="py-24">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-primary">
+            Use Cases
+          </p>
+          <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">
+            Tailored White Background Solutions
+          </h2>
+        </div>
+        <Tabs defaultValue="sellers" className="mt-12">
+          <TabsList className="mx-auto flex h-auto w-full max-w-3xl flex-wrap justify-center gap-2 rounded-full bg-muted/60 p-1.5">
+            {tabs.map((t) => (
+              <TabsTrigger
+                key={t.id}
+                value={t.id}
+                className="rounded-full px-4 py-2 text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[var(--shadow-elegant)]"
+              >
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          {tabs.map((t) => (
+            <TabsContent key={t.id} value={t.id} className="mt-10">
+              <Card
+                className="grid gap-8 rounded-2xl border-border/70 bg-background p-6 md:grid-cols-2 md:p-10"
+                style={{ boxShadow: "var(--shadow-card)" }}
+              >
+                <UseCaseCompare />
+                <div className="flex flex-col justify-center">
+                  <h3 className="font-display text-2xl font-bold">{t.label}</h3>
+                  <ul className="mt-6 space-y-4">
+                    {t.bullets.map((b) => (
+                      <li key={b} className="flex items-start gap-3">
+                        <div className="mt-0.5 grid h-6 w-6 place-items-center rounded-full bg-accent text-primary">
+                          <Check className="h-3.5 w-3.5" />
+                        </div>
+                        <span className="text-sm text-foreground/80">{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Card>
+            </TabsContent>
+          ))}
+        </Tabs>
+      </div>
+    </section>
+  );
+}
+
+function UseCaseCompare() {
+  const [pos, setPos] = useState(50);
+  return (
+    <div
+      className="relative aspect-square w-full overflow-hidden rounded-xl border border-border/70 select-none"
+      style={{ boxShadow: "var(--shadow-card)" }}
+    >
+      <div className="absolute inset-0 bg-white">
+        <ProductMock shadow />
+        <span className="absolute right-2 top-2 rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+          AFTER · #FFFFFF
+        </span>
+      </div>
+      <div
+        className="absolute inset-0 overflow-hidden"
+        style={{
+          clipPath: `polygon(0 0, ${pos}% 0, ${pos}% 100%, 0 100%)`,
+          background:
+            "linear-gradient(135deg, #6b7c8a 0%, #3d4a55 50%, #1e2530 100%)",
+        }}
+      >
+        <ProductMock />
+        <span className="absolute left-2 top-2 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-white">
+          BEFORE
+        </span>
+      </div>
+      <div
+        className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.1)]"
+        style={{ left: `calc(${pos}% - 1px)` }}
+      >
+        <div className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-border bg-white p-1.5 shadow-md">
+          <div className="flex gap-0.5">
+            <div className="h-3 w-0.5 bg-foreground/60" />
+            <div className="h-3 w-0.5 bg-foreground/60" />
+          </div>
+        </div>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={pos}
+        onChange={(e) => setPos(Number(e.target.value))}
+        className="absolute inset-0 z-20 h-full w-full cursor-ew-resize opacity-0"
+        aria-label="Before/after slider"
+      />
+    </div>
+  );
+}
+
+function AmazonGuideDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (b: boolean) => void;
+}) {
+  const points = [
+    {
+      title: "Background Color",
+      desc: "Must be Pure White RGB (255, 255, 255 / #FFFFFF).",
+    },
+    {
+      title: "Frame Fill",
+      desc: "Product must occupy at least 85% of the frame.",
+    },
+    {
+      title: "Resolution",
+      desc: "Minimum 1000×1000px for high-res zoom functionality.",
+    },
+    {
+      title: "Clean Presentation",
+      desc: "Pure product photo only (no added badges, watermarks, or text).",
+    },
+  ];
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg overflow-hidden rounded-2xl p-0">
+        <div
+          className="px-7 pb-5 pt-7 text-white"
+          style={{ background: "var(--gradient-primary)" }}
+        >
+          <Badge className="mb-3 rounded-full bg-white/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-white/20">
+            <ShieldCheck className="mr-1 h-3 w-3" /> Official Guidelines
+          </Badge>
+          <DialogHeader className="text-left">
+            <DialogTitle className="font-display text-2xl font-bold text-white">
+              Amazon Main Image Compliance Checklist
+            </DialogTitle>
+            <DialogDescription className="text-white/80">
+              Meet all four rules to avoid listing suppression.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+        <div className="space-y-4 px-7 py-6">
+          {points.map((p, i) => (
+            <div key={p.title} className="flex items-start gap-3">
+              <div className="grid h-7 w-7 flex-shrink-0 place-items-center rounded-full bg-accent text-xs font-bold text-primary">
+                {i + 1}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">{p.title}</p>
+                <p className="text-sm text-muted-foreground">{p.desc}</p>
+              </div>
+            </div>
+          ))}
+          <Button
+            size="lg"
+            onClick={() => {
+              onOpenChange(false);
+              if (typeof window !== "undefined") {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
+            className="mt-2 w-full rounded-lg bg-primary py-6 text-base font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
+          >
+            Format Your Photos to Amazon Rules
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
