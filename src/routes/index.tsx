@@ -13,6 +13,7 @@ import {
   Wand2,
   Image as ImageIcon,
   Lock,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -41,6 +49,17 @@ function LandingPage() {
   const [amazonPreset, setAmazonPreset] = useState(true);
   const [softShadow, setSoftShadow] = useState(true);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [singleDownloads, setSingleDownloads] = useState(0);
+  const [amazonGuideOpen, setAmazonGuideOpen] = useState(false);
+
+  const handleSingleDownload = () => {
+    const next = singleDownloads + 1;
+    if (next > 3) {
+      setPaywallOpen(true);
+      return;
+    }
+    setSingleDownloads(next);
+  };
 
   return (
     <div className="min-h-screen bg-background font-sans text-foreground antialiased">
@@ -53,15 +72,18 @@ function LandingPage() {
         softShadow={softShadow}
         setSoftShadow={setSoftShadow}
         onBatchExport={() => setPaywallOpen(true)}
+        onSingleDownload={handleSingleDownload}
       />
       <TrustBar />
       <ValueProps />
       <HowItWorks />
+      <UseCases />
       <ComplianceTable />
       <Pricing onUpgrade={() => setPaywallOpen(true)} />
       <FAQ />
-      <Footer />
+      <Footer onOpenAmazonGuide={() => setAmazonGuideOpen(true)} />
       <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
+      <AmazonGuideDialog open={amazonGuideOpen} onOpenChange={setAmazonGuideOpen} />
     </div>
   );
 }
@@ -138,6 +160,7 @@ function Hero({
   softShadow: boolean;
   setSoftShadow: (b: boolean) => void;
   onBatchExport: () => void;
+  onSingleDownload: () => void;
 }) {
   return (
     <section
@@ -233,6 +256,7 @@ function Hero({
                   <Button
                     variant="outline"
                     className="w-full justify-center rounded-lg border-border/70 font-medium"
+                    onClick={onSingleDownload}
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Download Single PNG (High-Res)
