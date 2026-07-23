@@ -905,9 +905,9 @@ function Pricing({ onUpgrade }: { onUpgrade: () => void }) {
         "Basic #FFFFFF Background Isolation",
         "Single File Download",
       ],
-      cta: "Current Plan",
+      cta: "Start Free (3 Credits)",
       featured: false,
-      disabled: true,
+      disabled: false,
     },
     {
       name: "Pro Seller Pass",
@@ -1109,7 +1109,8 @@ function FAQ() {
   );
 }
 
-function Footer() {
+function Footer({ onOpenAmazonGuide }: { onOpenAmazonGuide: () => void }) {
+  const [lang, setLang] = useState("English");
   return (
     <footer className="border-t border-border/60 bg-muted/30 py-14">
       <div className="mx-auto max-w-7xl px-6">
@@ -1127,12 +1128,7 @@ function Footer() {
             <p className="mt-2 text-xs text-muted-foreground">purewhitebg.com</p>
           </div>
           <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
-            {[
-              "Terms of Service",
-              "Privacy Policy",
-              "Amazon Image Guidelines Guide",
-              "Support Contact",
-            ].map((l) => (
+            {["Terms of Service", "Privacy Policy", "Support Contact"].map((l) => (
               <a
                 key={l}
                 href="#"
@@ -1141,13 +1137,49 @@ function Footer() {
                 {l}
               </a>
             ))}
+            <button
+              onClick={onOpenAmazonGuide}
+              className="font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Amazon Image Guidelines Guide
+            </button>
           </div>
         </div>
-        <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-border/60 pt-6 text-xs text-muted-foreground md:flex-row">
+        <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-6 text-xs text-muted-foreground md:flex-row">
           <p>© 2026 PureWhite BG. All rights reserved.</p>
-          <p className="flex items-center gap-1">
-            <ImageIcon className="h-3 w-3" /> Trusted by 250,000+ sellers this month
-          </p>
+          <div className="flex flex-wrap items-center gap-5">
+            <span className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              </span>
+              <span className="font-medium text-foreground/80">
+                All Systems Operational
+              </span>
+            </span>
+            <span className="flex items-center gap-1">
+              <ImageIcon className="h-3 w-3" /> Trusted by 250,000+ sellers this month
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-full border-border/70 px-3 text-xs font-medium"
+                >
+                  <Globe className="mr-1.5 h-3.5 w-3.5" />
+                  {lang}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[10rem]">
+                {["English", "Español", "Deutsch", "Français", "日本語"].map((l) => (
+                  <DropdownMenuItem key={l} onClick={() => setLang(l)}>
+                    {l}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </footer>
