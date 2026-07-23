@@ -707,7 +707,13 @@ function UseCases() {
 }
 
 
-function UseCaseCompare() {
+function UseCaseCompare({
+  beforeImage,
+  afterImage,
+}: {
+  beforeImage: string;
+  afterImage: string;
+}) {
   const [pos, setPos] = useState(50);
   return (
     <div
@@ -715,7 +721,14 @@ function UseCaseCompare() {
       style={{ boxShadow: "var(--shadow-card)" }}
     >
       <div className="absolute inset-0 bg-white">
-        <ProductMock shadow />
+        <img
+          src={afterImage}
+          alt="After editing on pure white background"
+          className="h-full w-full object-cover"
+          loading="lazy"
+          width={1024}
+          height={1024}
+        />
         <span className="absolute right-2 top-2 rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
           AFTER · #FFFFFF
         </span>
@@ -724,11 +737,16 @@ function UseCaseCompare() {
         className="absolute inset-0 overflow-hidden"
         style={{
           clipPath: `polygon(0 0, ${pos}% 0, ${pos}% 100%, 0 100%)`,
-          background:
-            "linear-gradient(135deg, #6b7c8a 0%, #3d4a55 50%, #1e2530 100%)",
         }}
       >
-        <ProductMock />
+        <img
+          src={beforeImage}
+          alt="Before editing with original background"
+          className="h-full w-full object-cover"
+          loading="lazy"
+          width={1024}
+          height={1024}
+        />
         <span className="absolute left-2 top-2 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-white">
           BEFORE
         </span>
@@ -756,6 +774,7 @@ function UseCaseCompare() {
     </div>
   );
 }
+
 
 function AmazonGuideDialog({
   open,
