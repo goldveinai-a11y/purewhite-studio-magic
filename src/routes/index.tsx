@@ -152,6 +152,7 @@ function Hero({
   softShadow,
   setSoftShadow,
   onBatchExport,
+  onSingleDownload,
 }: {
   sliderPos: number;
   setSliderPos: (n: number) => void;
