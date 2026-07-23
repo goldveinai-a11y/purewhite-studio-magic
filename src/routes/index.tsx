@@ -452,24 +452,6 @@ function BeforeAfter({
 }
 
 
-function ProductMock({ shadow = false }: { shadow?: boolean }) {
-  return (
-    <div className="absolute inset-0 grid place-items-center">
-      <div className="relative">
-        <div
-          className="h-40 w-24 rounded-b-[2rem] rounded-t-lg bg-gradient-to-b from-primary via-primary to-[oklch(0.35_0.18_277)]"
-          style={
-            shadow
-              ? { filter: "drop-shadow(0 18px 12px rgba(0,0,0,0.18))" }
-              : undefined
-          }
-        />
-        <div className="absolute left-1/2 top-2 h-8 w-14 -translate-x-1/2 rounded-md bg-white/90" />
-        <div className="absolute -top-3 left-1/2 h-5 w-8 -translate-x-1/2 rounded-t-md bg-[oklch(0.35_0.18_277)]" />
-      </div>
-    </div>
-  );
-}
 
 function TrustBar() {
   return (
