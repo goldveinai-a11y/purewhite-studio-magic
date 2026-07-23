@@ -39,6 +39,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import heroSneakerBefore from "@/assets/hero-sneaker-before.jpg.asset.json";
+import heroSneakerAfter from "@/assets/hero-sneaker-after.jpg.asset.json";
+import sellersHeadphonesBefore from "@/assets/sellers-headphones-before.jpg.asset.json";
+import sellersHeadphonesAfter from "@/assets/sellers-headphones-after.jpg.asset.json";
+import agenciesPerfumeBefore from "@/assets/agencies-perfume-before.jpg.asset.json";
+import agenciesPerfumeAfter from "@/assets/agencies-perfume-after.jpg.asset.json";
+import photographersWatchBefore from "@/assets/photographers-watch-before.jpg.asset.json";
+import photographersWatchAfter from "@/assets/photographers-watch-after.jpg.asset.json";
+
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
@@ -274,7 +283,12 @@ function Hero({
             </div>
 
             <div className="grid gap-6 p-6 md:grid-cols-[1.4fr_1fr] md:p-8">
-              <BeforeAfter pos={sliderPos} setPos={setSliderPos} />
+              <BeforeAfter
+                pos={sliderPos}
+                setPos={setSliderPos}
+                beforeImage={heroSneakerBefore.url}
+                afterImage={heroSneakerAfter.url}
+              />
 
               <div className="flex flex-col justify-between gap-6">
                 <div className="space-y-4">
@@ -361,7 +375,17 @@ function ToggleRow({
   );
 }
 
-function BeforeAfter({ pos, setPos }: { pos: number; setPos: (n: number) => void }) {
+function BeforeAfter({
+  pos,
+  setPos,
+  beforeImage,
+  afterImage,
+}: {
+  pos: number;
+  setPos: (n: number) => void;
+  beforeImage: string;
+  afterImage: string;
+}) {
   return (
     <div className="space-y-3">
       <div
@@ -369,7 +393,14 @@ function BeforeAfter({ pos, setPos }: { pos: number; setPos: (n: number) => void
         style={{ boxShadow: "var(--shadow-card)" }}
       >
         <div className="absolute inset-0 bg-white">
-          <ProductMock shadow />
+          <img
+            src={afterImage}
+            alt="After editing on pure white background"
+            className="h-full w-full object-cover"
+            loading="lazy"
+            width={1024}
+            height={1024}
+          />
           <span className="absolute right-2 top-2 rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
             AFTER · #FFFFFF
           </span>
@@ -378,11 +409,16 @@ function BeforeAfter({ pos, setPos }: { pos: number; setPos: (n: number) => void
           className="absolute inset-0 overflow-hidden"
           style={{
             clipPath: `polygon(0 0, ${pos}% 0, ${pos}% 100%, 0 100%)`,
-            background:
-              "linear-gradient(135deg, #d4a574 0%, #8b6f5e 50%, #4a3728 100%)",
           }}
         >
-          <ProductMock />
+          <img
+            src={beforeImage}
+            alt="Before editing with original background"
+            className="h-full w-full object-cover"
+            loading="lazy"
+            width={1024}
+            height={1024}
+          />
           <span className="absolute left-2 top-2 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-white">
             BEFORE
           </span>
@@ -415,24 +451,7 @@ function BeforeAfter({ pos, setPos }: { pos: number; setPos: (n: number) => void
   );
 }
 
-function ProductMock({ shadow = false }: { shadow?: boolean }) {
-  return (
-    <div className="absolute inset-0 grid place-items-center">
-      <div className="relative">
-        <div
-          className="h-40 w-24 rounded-b-[2rem] rounded-t-lg bg-gradient-to-b from-primary via-primary to-[oklch(0.35_0.18_277)]"
-          style={
-            shadow
-              ? { filter: "drop-shadow(0 18px 12px rgba(0,0,0,0.18))" }
-              : undefined
-          }
-        />
-        <div className="absolute left-1/2 top-2 h-8 w-14 -translate-x-1/2 rounded-md bg-white/90" />
-        <div className="absolute -top-3 left-1/2 h-5 w-8 -translate-x-1/2 rounded-t-md bg-[oklch(0.35_0.18_277)]" />
-      </div>
-    </div>
-  );
-}
+
 
 function TrustBar() {
   return (
@@ -588,6 +607,8 @@ function UseCases() {
         "Instant 1000×1000px square frame fill",
         "Batch export for whole catalogs",
       ],
+      beforeImage: sellersHeadphonesBefore.url,
+      afterImage: sellersHeadphonesAfter.url,
     },
     {
       id: "agencies",
@@ -597,6 +618,8 @@ function UseCases() {
         "High-res PNG export",
         "Commercial usage rights included",
       ],
+      beforeImage: agenciesPerfumeBefore.url,
+      afterImage: agenciesPerfumeAfter.url,
     },
     {
       id: "photographers",
@@ -606,6 +629,8 @@ function UseCases() {
         "Real soft shadow generation",
         "Ultra-fast client deliverables",
       ],
+      beforeImage: photographersWatchBefore.url,
+      afterImage: photographersWatchAfter.url,
     },
   ];
   return (
@@ -637,7 +662,10 @@ function UseCases() {
                 className="grid gap-8 rounded-2xl border-border/70 bg-background p-6 md:grid-cols-2 md:p-10"
                 style={{ boxShadow: "var(--shadow-card)" }}
               >
-                <UseCaseCompare />
+                <UseCaseCompare
+                  beforeImage={t.beforeImage}
+                  afterImage={t.afterImage}
+                />
                 <div className="flex flex-col justify-center">
                   <h3 className="font-display text-2xl font-bold">{t.label}</h3>
                   <ul className="mt-6 space-y-4">
@@ -660,7 +688,14 @@ function UseCases() {
   );
 }
 
-function UseCaseCompare() {
+
+function UseCaseCompare({
+  beforeImage,
+  afterImage,
+}: {
+  beforeImage: string;
+  afterImage: string;
+}) {
   const [pos, setPos] = useState(50);
   return (
     <div
@@ -668,7 +703,14 @@ function UseCaseCompare() {
       style={{ boxShadow: "var(--shadow-card)" }}
     >
       <div className="absolute inset-0 bg-white">
-        <ProductMock shadow />
+        <img
+          src={afterImage}
+          alt="After editing on pure white background"
+          className="h-full w-full object-cover"
+          loading="lazy"
+          width={1024}
+          height={1024}
+        />
         <span className="absolute right-2 top-2 rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
           AFTER · #FFFFFF
         </span>
@@ -677,11 +719,16 @@ function UseCaseCompare() {
         className="absolute inset-0 overflow-hidden"
         style={{
           clipPath: `polygon(0 0, ${pos}% 0, ${pos}% 100%, 0 100%)`,
-          background:
-            "linear-gradient(135deg, #6b7c8a 0%, #3d4a55 50%, #1e2530 100%)",
         }}
       >
-        <ProductMock />
+        <img
+          src={beforeImage}
+          alt="Before editing with original background"
+          className="h-full w-full object-cover"
+          loading="lazy"
+          width={1024}
+          height={1024}
+        />
         <span className="absolute left-2 top-2 rounded-md bg-black/70 px-2 py-0.5 text-[10px] font-semibold text-white">
           BEFORE
         </span>
@@ -709,6 +756,7 @@ function UseCaseCompare() {
     </div>
   );
 }
+
 
 function AmazonGuideDialog({
   open,
