@@ -42,6 +42,56 @@ import {
 
 export const Route = createFileRoute("/")({
   component: LandingPage,
+  head: () => ({
+    meta: [
+      { title: "PureWhite BG — #1 Amazon Background Remover & Batch Editor" },
+      {
+        name: "description",
+        content:
+          "Batch remove backgrounds to 100% pure white (#FFFFFF) for Amazon, Shopify & eBay. Auto-resize to 1000x1000px, add soft shadows & export ZIP in 5 seconds.",
+      },
+      {
+        name: "keywords",
+        content:
+          "amazon background remover, pure white background app, batch photo background isolation, 1000x1000 amazon image resizer, ebay white background generator",
+      },
+      {
+        property: "og:title",
+        content: "PureWhite BG — Instant #FFFFFF Backgrounds for E-Commerce",
+      },
+      {
+        property: "og:description",
+        content: "Convert product photos to 100% Amazon-compliant pure white listings in bulk.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://purewhitebg.com" },
+    ],
+    links: [{ rel: "canonical", href: "https://purewhitebg.com" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "PureWhite BG",
+          operatingSystem: "All",
+          applicationCategory: "DesignApplication",
+          offers: {
+            "@type": "Offer",
+            price: "9.99",
+            priceCurrency: "USD",
+          },
+          description:
+            "Automated e-commerce background remover and Amazon 1000x1000px resizer for online sellers.",
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: "4.9",
+            ratingCount: "1280",
+          },
+        }),
+      },
+    ],
+  }),
 });
 
 function LandingPage() {

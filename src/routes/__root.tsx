@@ -77,12 +77,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "PureWhite BG — Instant Pure White Backgrounds for Amazon & E-Commerce" },
-      { name: "description", content: "Batch remove backgrounds, apply pure #FFFFFF canvas, auto-resize to 1000x1000px, and add realistic shadows. 100% Amazon-compliant product photos in seconds." },
+      { title: "PureWhite BG — #1 Amazon Background Remover & Batch Editor" },
+      { name: "description", content: "Batch remove backgrounds to 100% pure white (#FFFFFF) for Amazon, Shopify & eBay. Auto-resize to 1000x1000px, add soft shadows & export ZIP in 5 seconds." },
+      { name: "keywords", content: "amazon background remover, pure white background app, batch photo background isolation, 1000x1000 amazon image resizer, ebay white background generator" },
       { name: "author", content: "PureWhite BG" },
-      { property: "og:title", content: "PureWhite BG — Pure White Backgrounds for Amazon Sellers" },
-      { property: "og:description", content: "Upload product photos in bulk. Get 100% Amazon-compliant pure white background listings in 5 seconds." },
+      { property: "og:title", content: "PureWhite BG — Instant #FFFFFF Backgrounds for E-Commerce" },
+      { property: "og:description", content: "Convert product photos to 100% Amazon-compliant pure white listings in bulk." },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://purewhitebg.com" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@PureWhiteBG" },
     ],
@@ -108,7 +110,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en-US">
       <head>
         <HeadContent />
       </head>
