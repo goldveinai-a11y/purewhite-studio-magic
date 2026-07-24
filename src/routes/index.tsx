@@ -132,8 +132,6 @@ function LandingPage() {
         setAmazonPreset={setAmazonPreset}
         softShadow={softShadow}
         setSoftShadow={setSoftShadow}
-        onBatchExport={() => setPaywallOpen(true)}
-        onSingleDownload={handleSingleDownload}
         credits={credits}
         setCredits={setCredits}
         onPaywall={() => setPaywallOpen(true)}
