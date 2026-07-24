@@ -36,7 +36,10 @@ export const removeBackground = createServerFn({ method: "POST" })
         Authorization: `Key ${key}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ image_url: data.imageUrl }),
+      body: JSON.stringify({
+        image_url: data.imageUrl,
+        operating_resolution: "2048x2048",
+      }),
     });
 
     if (!res.ok) {
