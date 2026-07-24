@@ -117,24 +117,28 @@ export async function postProcess(
   // sits behind it. Rendered on its own offscreen canvas and blurred with
   // ctx.filter for a realistic contact shadow, then composited in.
   if (opts.softShadow) {
-    const bottomY = dy + drawH;
+    // Lowest opaque pixel of the subject as rendered on the output canvas.
+    // Nudge up by 1px so the shadow visually touches the sole with ZERO gap
+    // (accounts for edge feathering softening the last row of pixels).
+    const bottomY = dy + drawH - 1;
     const cx = size / 2;
 
-    // Layer 2 — ambient: wider, softer, offset 6px down
+    // Layer 2 — ambient: wider, softer, offset 3px below the sole
     const ambient = document.createElement("canvas");
     ambient.width = size;
     ambient.height = size;
     const ax = ambient.getContext("2d");
     if (ax) {
-      ax.filter = "blur(16px)";
+      ax.filter = "blur(14px)";
       ax.fillStyle = "rgba(0, 0, 0, 0.12)";
       ax.beginPath();
-      ax.ellipse(cx, bottomY + 6, drawW * 0.475, 10, 0, 0, Math.PI * 2);
+      // height 16px -> ry = 8; shifted 3px lower than contact baseline
+      ax.ellipse(cx, bottomY + 3, drawW * 0.475, 8, 0, 0, Math.PI * 2);
       ax.fill();
       ctx.drawImage(ambient, 0, 0);
     }
 
-    // Layer 1 — contact: tight, dark, flush with object base
+    // Layer 1 — contact: tight, dark, flush with object base (zero gap)
     const contact = document.createElement("canvas");
     contact.width = size;
     contact.height = size;
@@ -143,7 +147,9 @@ export async function postProcess(
       cxt.filter = "blur(3px)";
       cxt.fillStyle = "rgba(0, 0, 0, 0.55)";
       cxt.beginPath();
-      cxt.ellipse(cx, bottomY, drawW * 0.425, 4, 0, 0, Math.PI * 2);
+      // height 6px -> ry = 3; centered on the sole so the top half overlaps
+      // the last opaque row and eliminates any visible whitespace gap.
+      cxt.ellipse(cx, bottomY, drawW * 0.425, 3, 0, 0, Math.PI * 2);
       cxt.fill();
       ctx.drawImage(contact, 0, 0);
     }
