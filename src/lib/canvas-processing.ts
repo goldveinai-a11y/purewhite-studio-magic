@@ -11,6 +11,7 @@ export type PostProcessOptions = {
 
 const AMAZON_SIZE = 1000;
 const FRAME_FILL = 0.85;
+const FEATHER_PX = 1.2;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -20,6 +21,34 @@ function loadImage(src: string): Promise<HTMLImageElement> {
     img.onerror = () => reject(new Error("Failed to load image"));
     img.src = src;
   });
+}
+
+/**
+ * Render the isolated subject with a light edge feather (1–2px) into a
+ * temporary transparent canvas of the target size. Feathering softens
+ * jagged mask edges from the background remover before we composite the
+ * subject onto the pure white canvas.
+ */
+function renderFeatheredSubject(
+  img: HTMLImageElement,
+  bounds: { x: number; y: number; w: number; h: number },
+  drawW: number,
+  drawH: number,
+  dx: number,
+  dy: number,
+  size: number,
+): HTMLCanvasElement {
+  const layer = document.createElement("canvas");
+  layer.width = size;
+  layer.height = size;
+  const lctx = layer.getContext("2d");
+  if (!lctx) throw new Error("Canvas 2D unavailable");
+  // Slight blur on the alpha edges — CanvasRenderingContext2D.filter is
+  // widely supported in modern browsers and only affects this draw call.
+  lctx.filter = `blur(${FEATHER_PX}px)`;
+  lctx.drawImage(img, bounds.x, bounds.y, bounds.w, bounds.h, dx, dy, drawW, drawH);
+  lctx.filter = "none";
+  return layer;
 }
 
 /** Find opaque bounding box in an ImageData. */
@@ -84,13 +113,13 @@ export async function postProcess(
 
   // Optional soft shadow directly below the object base
   if (opts.softShadow) {
-    const shadowH = Math.max(6, drawH * 0.06);
-    const shadowW = drawW * 0.75;
+    const shadowH = Math.max(10, drawH * 0.08);
+    const shadowW = drawW * 0.82;
     const cx = size / 2;
-    const cy = dy + drawH + shadowH * 0.55;
+    const cy = dy + drawH + shadowH * 0.5;
     const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, shadowW / 2);
-    grad.addColorStop(0, "rgba(15, 23, 42, 0.28)");
-    grad.addColorStop(0.6, "rgba(15, 23, 42, 0.10)");
+    grad.addColorStop(0, "rgba(15, 23, 42, 0.34)");
+    grad.addColorStop(0.55, "rgba(15, 23, 42, 0.14)");
     grad.addColorStop(1, "rgba(15, 23, 42, 0)");
     ctx.save();
     ctx.translate(cx, cy);
@@ -102,8 +131,9 @@ export async function postProcess(
     ctx.restore();
   }
 
-  // Draw subject from its tight bounds into the centered target rect
-  ctx.drawImage(img, bounds.x, bounds.y, bounds.w, bounds.h, dx, dy, drawW, drawH);
+  // Draw subject with a 1–2px alpha feather to clean up jagged mask edges.
+  const subjectLayer = renderFeatheredSubject(img, bounds, drawW, drawH, dx, dy, size);
+  ctx.drawImage(subjectLayer, 0, 0);
 
   return new Promise<Blob>((resolve, reject) => {
     out.toBlob(
