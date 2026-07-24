@@ -258,90 +258,53 @@ function Hero({
             className="overflow-hidden rounded-2xl border-border/70 bg-white p-0"
             style={{ boxShadow: "var(--shadow-card)" }}
           >
-            <div className="border-b border-border/60 p-6 md:p-8">
-              <div className="group relative rounded-xl border-2 border-dashed border-primary/30 bg-accent/40 p-8 text-center transition-colors hover:border-primary/60 hover:bg-accent/70">
-                <div
-                  className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl text-white"
-                  style={{ background: "var(--gradient-primary)" }}
-                >
-                  <Upload className="h-6 w-6" />
-                </div>
-                <p className="text-base font-semibold text-foreground">
-                  Drop up to 50 photos — JPEG, PNG, WEBP
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Batch supported. Max 20MB per file.
-                </p>
-                <div className="mt-5 flex flex-col items-center gap-2">
-                  <Button
-                    size="lg"
-                    className="rounded-full bg-primary px-6 font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    Upload Product Photos (Batch Supported)
-                  </Button>
-                  <button className="text-sm font-medium text-primary underline-offset-4 hover:underline">
-                    or try with a sample product photo
-                  </button>
+            <div className="grid gap-6 p-6 md:grid-cols-[1.4fr_1fr] md:p-8">
+              <div className="space-y-6">
+                <StudioWorkspace
+                  amazonPreset={amazonPreset}
+                  softShadow={softShadow}
+                  credits={credits}
+                  setCredits={setCredits}
+                  onPaywall={onPaywall}
+                />
+                <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-4">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Sample Preview
+                  </p>
+                  <BeforeAfter
+                    pos={sliderPos}
+                    setPos={setSliderPos}
+                    beforeImage={heroSneakerBefore.url}
+                    afterImage={heroSneakerAfter.url}
+                  />
                 </div>
               </div>
-            </div>
 
-            <div className="grid gap-6 p-6 md:grid-cols-[1.4fr_1fr] md:p-8">
-              <BeforeAfter
-                pos={sliderPos}
-                setPos={setSliderPos}
-                beforeImage={heroSneakerBefore.url}
-                afterImage={heroSneakerAfter.url}
-              />
-
-              <div className="flex flex-col justify-between gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Control Panel
-                    </p>
-                    <h3 className="mt-1 font-display text-lg font-bold">
-                      Studio Settings
-                    </h3>
-                  </div>
-
-                  <ToggleRow
-                    icon={<Layers className="h-4 w-4" />}
-                    title="Amazon 1000×1000px Preset"
-                    desc="Square 1:1 · 85% frame fill"
-                    checked={amazonPreset}
-                    onCheckedChange={setAmazonPreset}
-                  />
-                  <ToggleRow
-                    icon={<Wand2 className="h-4 w-4" />}
-                    title="AI Real Soft Shadow"
-                    desc="Natural drop shadow injection"
-                    checked={softShadow}
-                    onCheckedChange={setSoftShadow}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-center rounded-lg border-border/70 font-medium"
-                    onClick={onSingleDownload}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download Single PNG (High-Res)
-                  </Button>
-                  <Button
-                    onClick={onBatchExport}
-                    className="w-full justify-center rounded-lg bg-primary font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
-                  >
-                    <Package className="mr-2 h-4 w-4" />
-                    Download All as .ZIP (Batch Export)
-                  </Button>
-                  <p className="text-center text-[11px] text-muted-foreground">
-                    Batches over 3 photos require Pro
+              <div className="flex flex-col gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Control Panel
                   </p>
+                  <h3 className="mt-1 font-display text-lg font-bold">Studio Settings</h3>
                 </div>
+
+                <ToggleRow
+                  icon={<Layers className="h-4 w-4" />}
+                  title="Amazon 1000×1000px Preset"
+                  desc="Square 1:1 · 85% frame fill"
+                  checked={amazonPreset}
+                  onCheckedChange={setAmazonPreset}
+                />
+                <ToggleRow
+                  icon={<Wand2 className="h-4 w-4" />}
+                  title="AI Real Soft Shadow"
+                  desc="Natural drop shadow injection"
+                  checked={softShadow}
+                  onCheckedChange={setSoftShadow}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Free tier: {credits}/3 credits · Batches over 3 photos require Pro
+                </p>
               </div>
             </div>
           </Card>
