@@ -122,6 +122,16 @@ function LandingPage() {
     setSingleDownloads(next);
   };
 
+  const launchStudio = () => {
+    if (typeof window === "undefined") return;
+    if (window.location.pathname !== "/") {
+      window.location.href = "/#studio-workspace";
+      return;
+    }
+    const el = document.getElementById("studio-workspace");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div className="min-h-screen bg-background font-sans text-foreground antialiased">
       <Navbar onLaunch={launchStudio} />
