@@ -215,8 +215,9 @@ function Hero({
   setAmazonPreset,
   softShadow,
   setSoftShadow,
-  onBatchExport,
-  onSingleDownload,
+  credits,
+  setCredits,
+  onPaywall,
 }: {
   sliderPos: number;
   setSliderPos: (n: number) => void;
@@ -224,8 +225,9 @@ function Hero({
   setAmazonPreset: (b: boolean) => void;
   softShadow: boolean;
   setSoftShadow: (b: boolean) => void;
-  onBatchExport: () => void;
-  onSingleDownload: () => void;
+  credits: number;
+  setCredits: React.Dispatch<React.SetStateAction<number>>;
+  onPaywall: () => void;
 }) {
   return (
     <section
