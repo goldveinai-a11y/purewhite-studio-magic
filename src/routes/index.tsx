@@ -39,6 +39,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { StudioWorkspace } from "@/components/studio-workspace";
 import heroSneakerBefore from "@/assets/hero-sneaker-before.jpg.asset.json";
 import heroSneakerAfter from "@/assets/hero-sneaker-after.jpg.asset.json";
 import sellersHeadphonesBefore from "@/assets/sellers-headphones-before.jpg.asset.json";
@@ -110,6 +111,7 @@ function LandingPage() {
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [singleDownloads, setSingleDownloads] = useState(0);
   const [amazonGuideOpen, setAmazonGuideOpen] = useState(false);
+  const [credits, setCredits] = useState(3);
 
   const handleSingleDownload = () => {
     const next = singleDownloads + 1;
@@ -132,6 +134,9 @@ function LandingPage() {
         setSoftShadow={setSoftShadow}
         onBatchExport={() => setPaywallOpen(true)}
         onSingleDownload={handleSingleDownload}
+        credits={credits}
+        setCredits={setCredits}
+        onPaywall={() => setPaywallOpen(true)}
       />
       <TrustBar />
       <ValueProps />
