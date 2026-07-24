@@ -122,9 +122,19 @@ function LandingPage() {
     setSingleDownloads(next);
   };
 
+  const launchStudio = () => {
+    if (typeof window === "undefined") return;
+    if (window.location.pathname !== "/") {
+      window.location.href = "/#studio-workspace";
+      return;
+    }
+    const el = document.getElementById("studio-workspace");
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <div className="min-h-screen bg-background font-sans text-foreground antialiased">
-      <Navbar onLaunch={() => setPaywallOpen(true)} />
+      <Navbar onLaunch={launchStudio} />
       <Hero
         sliderPos={sliderPos}
         setSliderPos={setSliderPos}
@@ -253,7 +263,7 @@ function Hero({
           </p>
         </div>
 
-        <div className="mx-auto mt-12 max-w-5xl">
+        <div id="studio-workspace" className="mx-auto mt-12 max-w-5xl scroll-mt-24">
           <Card
             className="overflow-hidden rounded-2xl border-border/70 bg-white p-0"
             style={{ boxShadow: "var(--shadow-card)" }}
