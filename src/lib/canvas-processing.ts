@@ -99,6 +99,8 @@ export async function postProcess(
   out.height = size;
   const ctx = out.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D unavailable");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
 
   // Fill pure white background (#FFFFFF) — always, so Amazon-compliant
   ctx.fillStyle = "#FFFFFF";
@@ -116,29 +118,43 @@ export async function postProcess(
   // ctx.filter for a realistic contact shadow, then composited in.
   if (opts.softShadow) {
     const bottomY = dy + drawH;
-    const rx = drawW * 0.45;
-    const ry = Math.max(14, drawH * 0.04);
     const cx = size / 2;
-    const cy = bottomY + 10;
 
-    const shadow = document.createElement("canvas");
-    shadow.width = size;
-    shadow.height = size;
-    const sh = shadow.getContext("2d");
-    if (sh) {
-      sh.filter = "blur(12px)";
-      sh.fillStyle = "rgba(0, 0, 0, 0.22)";
-      sh.beginPath();
-      sh.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-      sh.fill();
-      sh.filter = "none";
-      ctx.drawImage(shadow, 0, 0);
+    // Layer 2 — ambient: wider, softer, offset 6px down
+    const ambient = document.createElement("canvas");
+    ambient.width = size;
+    ambient.height = size;
+    const ax = ambient.getContext("2d");
+    if (ax) {
+      ax.filter = "blur(16px)";
+      ax.fillStyle = "rgba(0, 0, 0, 0.12)";
+      ax.beginPath();
+      ax.ellipse(cx, bottomY + 6, drawW * 0.475, 10, 0, 0, Math.PI * 2);
+      ax.fill();
+      ctx.drawImage(ambient, 0, 0);
+    }
+
+    // Layer 1 — contact: tight, dark, flush with object base
+    const contact = document.createElement("canvas");
+    contact.width = size;
+    contact.height = size;
+    const cxt = contact.getContext("2d");
+    if (cxt) {
+      cxt.filter = "blur(3px)";
+      cxt.fillStyle = "rgba(0, 0, 0, 0.55)";
+      cxt.beginPath();
+      cxt.ellipse(cx, bottomY, drawW * 0.425, 4, 0, 0, Math.PI * 2);
+      cxt.fill();
+      ctx.drawImage(contact, 0, 0);
     }
   }
 
-  // Draw subject with a 1–2px alpha feather to clean up jagged mask edges.
+  // Draw subject with 1–2px alpha feather + subtle contrast/saturation boost.
+  // Filters only affect this drawImage call; the white background is untouched.
   const subjectLayer = renderFeatheredSubject(img, bounds, drawW, drawH, dx, dy, size);
+  ctx.filter = "contrast(1.04) saturate(1.02)";
   ctx.drawImage(subjectLayer, 0, 0);
+  ctx.filter = "none";
 
   return new Promise<Blob>((resolve, reject) => {
     out.toBlob(
