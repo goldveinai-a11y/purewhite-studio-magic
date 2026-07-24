@@ -67,11 +67,11 @@ export const Route = createFileRoute("/")({
       },
       {
         property: "og:title",
-        content: "PureWhite BG — Instant #FFFFFF Backgrounds for E-Commerce",
+        content: "PureWhite BG — #1 Amazon Background Remover & Batch Editor",
       },
       {
         property: "og:description",
-        content: "Convert product photos to 100% Amazon-compliant pure white listings in bulk.",
+        content: "Batch remove backgrounds to 100% pure white (#FFFFFF) for Amazon, Shopify & eBay. Auto-resize to 1000x1000px, add soft shadows & export ZIP in 5 seconds.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://purewhitebg.com" },
