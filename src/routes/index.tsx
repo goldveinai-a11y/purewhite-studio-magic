@@ -124,7 +124,7 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background font-sans text-foreground antialiased">
-      <Navbar onLaunch={() => setPaywallOpen(true)} />
+      <Navbar onLaunch={launchStudio} />
       <Hero
         sliderPos={sliderPos}
         setSliderPos={setSliderPos}
