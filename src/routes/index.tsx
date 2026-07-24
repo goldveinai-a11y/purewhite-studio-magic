@@ -263,7 +263,7 @@ function Hero({
           </p>
         </div>
 
-        <div className="mx-auto mt-12 max-w-5xl">
+        <div id="studio-workspace" className="mx-auto mt-12 max-w-5xl scroll-mt-24">
           <Card
             className="overflow-hidden rounded-2xl border-border/70 bg-white p-0"
             style={{ boxShadow: "var(--shadow-card)" }}
