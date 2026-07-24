@@ -111,24 +111,29 @@ export async function postProcess(
   const dx = (size - drawW) / 2;
   const dy = (size - drawH) / 2;
 
-  // Optional soft shadow directly below the object base
+  // Soft drop shadow UNDER the object — drawn before the subject so it
+  // sits behind it. Rendered on its own offscreen canvas and blurred with
+  // ctx.filter for a realistic contact shadow, then composited in.
   if (opts.softShadow) {
-    const shadowH = Math.max(10, drawH * 0.08);
-    const shadowW = drawW * 0.82;
+    const bottomY = dy + drawH;
+    const rx = drawW * 0.45;
+    const ry = Math.max(14, drawH * 0.04);
     const cx = size / 2;
-    const cy = dy + drawH + shadowH * 0.5;
-    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, shadowW / 2);
-    grad.addColorStop(0, "rgba(15, 23, 42, 0.34)");
-    grad.addColorStop(0.55, "rgba(15, 23, 42, 0.14)");
-    grad.addColorStop(1, "rgba(15, 23, 42, 0)");
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.scale(1, shadowH / (shadowW / 2));
-    ctx.beginPath();
-    ctx.arc(0, 0, shadowW / 2, 0, Math.PI * 2);
-    ctx.fillStyle = grad;
-    ctx.fill();
-    ctx.restore();
+    const cy = bottomY + 10;
+
+    const shadow = document.createElement("canvas");
+    shadow.width = size;
+    shadow.height = size;
+    const sh = shadow.getContext("2d");
+    if (sh) {
+      sh.filter = "blur(12px)";
+      sh.fillStyle = "rgba(0, 0, 0, 0.22)";
+      sh.beginPath();
+      sh.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      sh.fill();
+      sh.filter = "none";
+      ctx.drawImage(shadow, 0, 0);
+    }
   }
 
   // Draw subject with a 1–2px alpha feather to clean up jagged mask edges.
