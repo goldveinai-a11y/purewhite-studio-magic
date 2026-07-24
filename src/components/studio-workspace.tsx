@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import JSZip from "jszip";
 import { Upload, Download, Package, Loader2, X, Check, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -42,6 +42,17 @@ export function StudioWorkspace({
   const inputRef = useRef<HTMLInputElement>(null);
   const removeBg = useServerFn(removeBackground);
 
+  // Refs so in-flight batch jobs always read the CURRENT toggle values,
+  // even if the user flips them mid-batch.
+  const amazonRef = useRef(amazonPreset);
+  const shadowRef = useRef(softShadow);
+  useEffect(() => {
+    amazonRef.current = amazonPreset;
+  }, [amazonPreset]);
+  useEffect(() => {
+    shadowRef.current = softShadow;
+  }, [softShadow]);
+
   const updateJob = useCallback((id: string, patch: Partial<Job>) => {
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   }, []);
@@ -58,7 +69,10 @@ export function StudioWorkspace({
         updateJob(job.id, { status: "removing", progress: 40 });
         const { url } = await removeBg({ data: { imageUrl: dataUrl } });
         updateJob(job.id, { status: "compositing", progress: 75 });
-        const blob = await postProcess(url, { amazonPreset, softShadow });
+        const blob = await postProcess(url, {
+          amazonPreset: amazonRef.current,
+          softShadow: shadowRef.current,
+        });
         const resultUrl = URL.createObjectURL(blob);
         updateJob(job.id, {
           status: "done",
@@ -73,7 +87,7 @@ export function StudioWorkspace({
         toast.error(`${job.name}: ${msg}`);
       }
     },
-    [amazonPreset, softShadow, removeBg, updateJob, setCredits],
+    [removeBg, updateJob, setCredits],
   );
 
   const handleFiles = useCallback(
