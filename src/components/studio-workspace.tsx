@@ -219,7 +219,8 @@ export function StudioWorkspace({
         }}
       >
         <input
-          ref={inputRef}
+          id="pwbg-file-input"
+        ref={inputRef}
           type="file"
           accept="image/jpeg,image/png,image/webp"
           multiple
