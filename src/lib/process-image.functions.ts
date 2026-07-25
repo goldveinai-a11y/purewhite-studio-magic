@@ -30,7 +30,7 @@ export const removeBackground = createServerFn({ method: "POST" })
     const key = process.env.FALAI_KEY;
     if (!key) throw new Error("FALAI_KEY is not configured");
 
-    const res = await fetch("https://fal.run/fal-ai/birefnet", {
+    const res = await fetch("https://fal.run/fal-ai/birefnet/v2", {
       method: "POST",
       headers: {
         Authorization: `Key ${key}`,
@@ -38,7 +38,9 @@ export const removeBackground = createServerFn({ method: "POST" })
       },
       body: JSON.stringify({
         image_url: data.imageUrl,
+        model: "Matting",
         operating_resolution: "2048x2048",
+        refine_foreground: true,
       }),
     });
 
