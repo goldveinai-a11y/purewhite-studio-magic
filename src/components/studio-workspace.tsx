@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import JSZip from "jszip";
-import { Upload, Download, Package, Loader2, X, Check, AlertCircle } from "lucide-react";
+import {
+  Upload,
+  Download,
+  Package,
+  Loader2,
+  X,
+  Check,
+  AlertCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
@@ -23,6 +31,7 @@ type Job = {
 
 const MAX_CONCURRENT = 5;
 const FREE_BATCH_LIMIT = 3;
+const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB — matches the promise in the UI
 
 export function StudioWorkspace({
   amazonPreset,
@@ -57,6 +66,19 @@ export function StudioWorkspace({
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   }, []);
 
+  // One silent retry before giving up — transient fal.ai hiccups shouldn't
+  // cost the user a job.
+  const removeWithRetry = useCallback(
+    async (imageUrl: string): Promise<{ url: string }> => {
+      try {
+        return await removeBg({ data: { imageUrl } });
+      } catch {
+        return await removeBg({ data: { imageUrl } });
+      }
+    },
+    [removeBg],
+  );
+
   const runJob = useCallback(
     async (job: Job) => {
       try {
@@ -67,7 +89,7 @@ export function StudioWorkspace({
           ),
         );
         updateJob(job.id, { status: "removing", progress: 40 });
-        const { url } = await removeBg({ data: { imageUrl: dataUrl } });
+        const { url } = await removeWithRetry(dataUrl);
         updateJob(job.id, { status: "compositing", progress: 75 });
         const blob = await postProcess(url, {
           amazonPreset: amazonRef.current,
@@ -80,22 +102,37 @@ export function StudioWorkspace({
           resultBlob: blob,
           resultUrl,
         });
-        setCredits((c) => Math.max(0, c - 1));
+        // Credit already reserved up-front in handleFiles — nothing to do here.
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Processing failed";
         updateJob(job.id, { status: "error", progress: 100, error: msg });
+        // Refund the reserved credit — failures are on us, not the user.
+        setCredits((c) => c + 1);
         toast.error(`${job.name}: ${msg}`);
       }
     },
-    [removeBg, updateJob, setCredits],
+    [removeWithRetry, updateJob, setCredits],
   );
 
   const handleFiles = useCallback(
     async (fileList: FileList | null) => {
       if (!fileList || fileList.length === 0) return;
-      const files = Array.from(fileList).slice(0, 50);
+      let files = Array.from(fileList).slice(0, 50);
 
-      // Paywall gates
+      // Enforce the 20MB per-file promise
+      const oversize = files.filter((f) => f.size > MAX_FILE_BYTES);
+      if (oversize.length > 0) {
+        toast.error(
+          `${oversize.length} file(s) over 20MB were skipped: ${oversize
+            .map((f) => f.name)
+            .slice(0, 3)
+            .join(", ")}${oversize.length > 3 ? "…" : ""}`,
+        );
+        files = files.filter((f) => f.size <= MAX_FILE_BYTES);
+        if (files.length === 0) return;
+      }
+
+      // Paywall gates — checked BEFORE any processing starts
       if (files.length > FREE_BATCH_LIMIT && credits < 999) {
         onPaywall();
         toast.info(`Free tier supports up to ${FREE_BATCH_LIMIT} photos per batch.`);
@@ -110,6 +147,10 @@ export function StudioWorkspace({
         toast.info(`You have ${credits} credit(s). Upgrade to process more.`);
         return;
       }
+
+      // Reserve credits for the WHOLE batch atomically, before jobs start.
+      // Failed jobs refund inside runJob.
+      setCredits((c) => Math.max(0, c - files.length));
 
       const newJobs: Job[] = files.map((f) => ({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -135,7 +176,7 @@ export function StudioWorkspace({
       }
       await Promise.all(workers);
     },
-    [credits, onPaywall, runJob],
+    [credits, onPaywall, runJob, setCredits],
   );
 
   const doneJobs = jobs.filter((j) => j.status === "done" && j.resultBlob);
