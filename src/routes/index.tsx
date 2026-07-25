@@ -318,7 +318,7 @@ function Hero({
             style={{ boxShadow: "var(--shadow-card)" }}
           >
             <div className="grid gap-6 p-6 md:grid-cols-[1.4fr_1fr] md:p-8">
-              <div>
+              <div className="flex flex-col gap-4">
                 <StudioWorkspace
                   amazonPreset={amazonPreset}
                   softShadow={softShadow}
@@ -326,6 +326,19 @@ function Hero({
                   setCredits={setCredits}
                   onPaywall={onPaywall}
                 />
+                <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Sample Preview
+                  </p>
+                  <div className="mx-auto w-full max-w-[320px]">
+                    <BeforeAfter
+                      pos={sliderPos}
+                      setPos={setSliderPos}
+                      beforeImage={heroSneakerBefore.url}
+                      afterImage={heroSneakerAfter.url}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="flex flex-col gap-4">
@@ -339,14 +352,14 @@ function Hero({
                 <ToggleRow
                   icon={<Layers className="h-4 w-4" />}
                   title="Amazon 1000×1000px Preset"
-                  desc="Square 1:1 · 85% frame fill"
+                  desc="Auto-crops and centers your product"
                   checked={amazonPreset}
                   onCheckedChange={setAmazonPreset}
                 />
                 <ToggleRow
                   icon={<Wand2 className="h-4 w-4" />}
                   title="AI Real Soft Shadow"
-                  desc="Natural drop shadow injection"
+                  desc="Grounded contact shadow, not a flat cutout"
                   checked={softShadow}
                   onCheckedChange={setSoftShadow}
                 />
@@ -356,45 +369,34 @@ function Hero({
 
                 <div className="mt-2 space-y-2 rounded-xl border border-border/60 bg-muted/30 p-4">
                   <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Why Sellers Choose PureWhite
+                    Every Export Includes
                   </p>
                   <ul className="space-y-2 text-sm text-foreground">
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                      <span>100% marketplace-compliant pure white (#FFFFFF)</span>
+                      <span>No signup, no credit card &mdash; 3 photos free</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                      <span>2048&times;2048 source resolution &mdash; no blur, no upscaling</span>
+                      <span>Exact RGB 255,255,255 &mdash; the value Amazon actually checks</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                      <span>Batch process up to 50 photos in one go</span>
+                      <span>85% frame fill &mdash; the rule most rejected listings fail</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                      <span>Realistic AI soft shadow &mdash; free on every plan</span>
+                      <span>50 photos in, one ZIP out</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                      <span>Auto-resized to exact Amazon, Shopify and eBay specs</span>
+                      <span>Runs in your browser &mdash; nothing to install</span>
                     </li>
                   </ul>
                 </div>
               </div>
             </div>
 
-            <div className="border-t border-border/60 bg-muted/20 p-6 md:p-8">
-              <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Sample Preview
-              </p>
-              <BeforeAfter
-                pos={sliderPos}
-                setPos={setSliderPos}
-                beforeImage={heroSneakerBefore.url}
-                afterImage={heroSneakerAfter.url}
-              />
-            </div>
           </Card>
         </div>
       </div>
