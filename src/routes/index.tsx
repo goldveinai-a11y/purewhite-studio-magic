@@ -76,6 +76,13 @@ export const Route = createFileRoute("/")({
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://purewhitebg.com" },
+      { property: "og:image", content: "https://purewhitebg.com/__l5e/assets-v1/af8d981c-026a-4cdd-907a-72af6fbf0487/hero-sneaker-after.jpg" },
+      { property: "og:image:width", content: "1024" },
+      { property: "og:image:height", content: "1024" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "PureWhite BG - #1 Amazon Background Remover & Batch Editor" },
+      { name: "twitter:description", content: "Batch remove backgrounds to 100% pure white (#FFFFFF) for Amazon, Shopify & eBay. Auto-resize to 1000x1000px, add soft shadows & export ZIP in 5 seconds." },
+      { name: "twitter:image", content: "https://purewhitebg.com/__l5e/assets-v1/af8d981c-026a-4cdd-907a-72af6fbf0487/hero-sneaker-after.jpg" },
     ],
     links: [{ rel: "canonical", href: "https://purewhitebg.com" }],
     scripts: [
@@ -99,6 +106,47 @@ export const Route = createFileRoute("/")({
             ratingValue: "4.9",
             ratingCount: "1280",
           },
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: [
+            {
+              "@type": "Question",
+              name: "Why does Amazon suppress listings without pure white backgrounds?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Amazon's ranking algorithm enforces pure RGB 255,255,255 (#FFFFFF) main images to maintain a consistent grid experience across desktop and mobile. Non-compliant images can be suppressed from search or removed entirely, tanking your organic visibility and BSR.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "How does the 50-photo batch upload work?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Photos are processed in parallel using our GPU inference pipeline. Once complete, a ZIP archive is generated client-side and streamed to your browser - no waiting, no server round-trips for downloads.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Will my images lose quality during resizing?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "No. Output canvases are padded and upscaled with a high-fidelity resampler up to 2000x2000px crisp resolution. Your product edges remain sharp and print-ready.",
+              },
+            },
+            {
+              "@type": "Question",
+              name: "Is my product photography kept private?",
+              acceptedAnswer: {
+                "@type": "Answer",
+                text: "Yes. All uploaded assets are encrypted in transit and at rest, isolated to your session, and auto-deleted within 24 hours of processing. We never train models on your data.",
+              },
+            },
+          ],
         }),
       },
     ],
