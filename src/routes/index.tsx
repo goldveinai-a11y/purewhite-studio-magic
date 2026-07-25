@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { usePersistedCredits } from "@/hooks/use-credits";
 import {
   Upload,
   Sparkles,
@@ -111,7 +112,7 @@ function LandingPage() {
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [singleDownloads, setSingleDownloads] = useState(0);
   const [amazonGuideOpen, setAmazonGuideOpen] = useState(false);
-  const [credits, setCredits] = useState(3);
+  const { credits, setCredits } = usePersistedCredits();
 
   const handleSingleDownload = () => {
     const next = singleDownloads + 1;
@@ -234,7 +235,7 @@ function Hero({
   softShadow: boolean;
   setSoftShadow: (b: boolean) => void;
   credits: number;
-  setCredits: React.Dispatch<React.SetStateAction<number>>;
+  setCredits: (updater: (prev: number) => number) => void;
   onPaywall: () => void;
 }) {
   return (
