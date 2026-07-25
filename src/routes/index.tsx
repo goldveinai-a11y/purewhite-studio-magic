@@ -330,18 +330,16 @@ function Hero({
                   <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Sample Preview
                   </p>
-                  <div className="mx-auto w-full max-w-[320px]">
-                    <BeforeAfter
-                      pos={sliderPos}
-                      setPos={setSliderPos}
-                      beforeImage={heroSneakerBefore.url}
-                      afterImage={heroSneakerAfter.url}
-                    />
-                  </div>
+                  <BeforeAfter
+                    pos={sliderPos}
+                    setPos={setSliderPos}
+                    beforeImage={heroSneakerBefore.url}
+                    afterImage={heroSneakerAfter.url}
+                  />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 md:sticky md:top-24 md:self-start">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Control Panel
@@ -393,6 +391,29 @@ function Hero({
                       <span>Runs in your browser &mdash; nothing to install</span>
                     </li>
                   </ul>
+                </div>
+
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-sm font-semibold text-foreground">
+                    Try it on 3 photos, free
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    No account, no card. The files are yours whether you upgrade or not.
+                  </p>
+                  <Button
+                    onClick={() =>
+                      document
+                        .getElementById("studio-workspace")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                    }
+                    className="mt-3 w-full rounded-full bg-primary font-semibold text-primary-foreground hover:opacity-95"
+                  >
+                    Upload your first photo
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                  <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                    Need more? $9.99/mo &middot; or $29 once, forever
+                  </p>
                 </div>
               </div>
             </div>
