@@ -230,8 +230,9 @@ export function StudioWorkspace({
           }}
         />
         <div
-          className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl text-white"
+          className="mx-auto mb-4 grid h-14 w-14 cursor-pointer place-items-center rounded-2xl text-white"
           style={{ background: "var(--gradient-primary)" }}
+          onClick={() => inputRef.current?.click()}
         >
           <Upload className="h-6 w-6" />
         </div>
