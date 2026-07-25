@@ -317,30 +317,19 @@ function Hero({
             className="overflow-hidden rounded-2xl border-border/70 bg-white p-0"
             style={{ boxShadow: "var(--shadow-card)" }}
           >
-            <div className="grid gap-6 p-6 md:grid-cols-[1.4fr_1fr] md:p-8">
-              <div className="flex flex-col gap-4">
-                <StudioWorkspace
+            <div className="space-y-6 p-6 md:p-8">
+              <div className="grid gap-6 md:grid-cols-[1.4fr_1fr]">
+                <div className="flex flex-col gap-4">
+                  <StudioWorkspace
                   amazonPreset={amazonPreset}
                   softShadow={softShadow}
                   credits={credits}
                   setCredits={setCredits}
                   onPaywall={onPaywall}
                 />
-                <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
-                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Sample Preview
-                  </p>
-                  <BeforeAfter
-                    pos={sliderPos}
-                    setPos={setSliderPos}
-                    beforeImage={heroSneakerBefore.url}
-                    afterImage={heroSneakerAfter.url}
-                  />
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-4 md:sticky md:top-24 md:self-start">
-                <div>
+                <div className="flex flex-col gap-4">
+                  <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Control Panel
                   </p>
@@ -364,8 +353,25 @@ function Hero({
                 <p className="text-[11px] text-muted-foreground">
                   Free tier: {credits}/3 credits · Batches over 3 photos require Pro
                 </p>
-
-                <div className="mt-2 space-y-2 rounded-xl border border-border/60 bg-muted/30 p-4">
+                </div>
+              </div>
+              <div className="grid gap-6 md:grid-cols-[1.4fr_1fr]">
+                <div className="flex flex-col gap-4">
+                  <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Sample Preview
+                  </p>
+                  <BeforeAfter
+                    pos={sliderPos}
+                    setPos={setSliderPos}
+                    beforeImage={heroSneakerBefore.url}
+                    afterImage={heroSneakerAfter.url}
+                  />
+                </div>
+              
+                </div>
+                <div className="flex flex-col gap-4">
+                  <div className="mt-2 space-y-2 rounded-xl border border-border/60 bg-muted/30 p-4">
                   <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Every Export Includes
                   </p>
@@ -392,8 +398,7 @@ function Hero({
                     </li>
                   </ul>
                 </div>
-
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
                   <p className="text-sm font-semibold text-foreground">
                     Try it on 3 photos, free
                   </p>
@@ -401,11 +406,7 @@ function Hero({
                     No account, no card. The files are yours whether you upgrade or not.
                   </p>
                   <Button
-                    onClick={() =>
-                      document
-                        .getElementById("studio-workspace")
-                        ?.scrollIntoView({ behavior: "smooth", block: "start" })
-                    }
+                    onClick={() => document.getElementById("pwbg-file-input")?.click()}
                     className="mt-3 w-full rounded-full bg-primary font-semibold text-primary-foreground hover:opacity-95"
                   >
                     Upload your first photo
@@ -414,6 +415,7 @@ function Hero({
                   <p className="mt-2 text-center text-[11px] text-muted-foreground">
                     Need more? $9.99/mo &middot; or $29 once, forever
                   </p>
+                </div>
                 </div>
               </div>
             </div>
