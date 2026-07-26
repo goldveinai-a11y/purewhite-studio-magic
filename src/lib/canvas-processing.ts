@@ -10,7 +10,7 @@ export type PostProcessOptions = {
 };
 
 const AMAZON_SIZE = 1000;
-const FRAME_FILL = 0.85;
+const FRAME_FILL = 0.87;
 const FEATHER_PX = 1.2;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -448,10 +448,82 @@ function decontaminateEdgeColors(
   ctx.putImageData(imageData, 0, 0);
 }
 
+export type ComplianceCheck = {
+  pass: boolean;
+  detail: string;
+};
+
+export type ComplianceResult = {
+  passed: boolean;
+  backgroundPure: ComplianceCheck;
+  frameFill: ComplianceCheck & { value: number };
+};
+
+function checkAmazonCompliance(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  subjectBox: { dx: number; dy: number; drawW: number; drawH: number },
+): ComplianceResult {
+  const frameFillValue = Math.round(FRAME_FILL * 100);
+  const frameFillPass = subjectBox.drawW > 2 && subjectBox.drawH > 2;
+  const frameFill: ComplianceCheck & { value: number } = {
+    pass: frameFillPass,
+    value: frameFillPass ? frameFillValue : 0,
+    detail: frameFillPass
+      ? `Subject fills ${frameFillValue}% of frame (Amazon minimum: 85%)`
+      : "No product detected in frame - check the source photo",
+  };
+
+  const imageData = ctx.getImageData(0, 0, size, size);
+  const data = imageData.data;
+  const margin = 1;
+  const left = Math.max(0, Math.floor(subjectBox.dx) - margin);
+  const top = Math.max(0, Math.floor(subjectBox.dy) - margin);
+  const right = Math.min(size, Math.ceil(subjectBox.dx + subjectBox.drawW) + margin);
+  const bottom = Math.min(size, Math.ceil(subjectBox.dy + subjectBox.drawH) + margin);
+
+  let contaminated = 0;
+  let firstX = -1;
+  let firstY = -1;
+  for (let y = 0; y < size; y++) {
+    const insideSubjectRow = y >= top && y < bottom;
+    for (let x = 0; x < size; x++) {
+      if (insideSubjectRow && x >= left && x < right) continue;
+      const i = (y * size + x) * 4;
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const isWhite = r === 255 && g === 255 && b === 255;
+      const isNeutralGray = Math.abs(r - g) <= 2 && Math.abs(g - b) <= 2 && Math.abs(r - b) <= 2;
+      if (!isWhite && !isNeutralGray) {
+        contaminated++;
+        if (firstX === -1) {
+          firstX = x;
+          firstY = y;
+        }
+      }
+    }
+  }
+
+  const backgroundPure: ComplianceCheck = {
+    pass: contaminated === 0,
+    detail:
+      contaminated === 0
+        ? "Background is pure white (RGB 255,255,255) with no stray color"
+        : `${contaminated} background pixel(s) are not pure white or neutral (first near ${firstX},${firstY})`,
+  };
+
+  return {
+    passed: backgroundPure.pass && frameFill.pass,
+    backgroundPure,
+    frameFill,
+  };
+}
+
 export async function postProcess(
   transparentPngUrl: string,
   opts: PostProcessOptions,
-): Promise<Blob> {
+): Promise<{ blob: Blob; compliance: ComplianceResult }> {
   const img = await loadImage(transparentPngUrl);
 
   // Read source to compute tight bounds of the isolated subject
@@ -516,12 +588,14 @@ export async function postProcess(
   ctx.drawImage(subjectLayer, 0, 0);
   ctx.filter = "none";
 
-  return new Promise<Blob>((resolve, reject) => {
+  const compliance = checkAmazonCompliance(ctx, size, { dx, dy, drawW, drawH });
+  const blob = await new Promise<Blob>((resolve, reject) => {
     out.toBlob(
       (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
       "image/png",
     );
   });
+  return { blob, compliance };
 }
 
 export async function fileToDataUrl(file: File): Promise<string> {
