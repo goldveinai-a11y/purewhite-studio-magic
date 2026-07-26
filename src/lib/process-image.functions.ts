@@ -38,7 +38,7 @@ export const removeBackground = createServerFn({ method: "POST" })
       },
       body: JSON.stringify({
         image_url: data.imageUrl,
-        model: "Matting",
+        model: "General Use (Heavy)",
         operating_resolution: "2048x2048",
         refine_foreground: true,
       }),
