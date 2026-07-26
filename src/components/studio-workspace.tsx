@@ -68,7 +68,7 @@ type Job = {
   error?: string;
 };
 
-const MAX_CONCURRENT = 12;
+const MAX_CONCURRENT = 8;
 const FREE_BATCH_LIMIT = 3;
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB — matches the promise in the UI
 
@@ -110,18 +110,14 @@ export function StudioWorkspace({
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   }, []);
 
-  // One silent retry before giving up — transient fal.ai hiccups shouldn't
-  // cost the user a job.
+  // One silent rembg retry before giving up — transient fal.ai hiccups shouldn't
+  // cost the user a job, but we never switch to slower fallback models.
   const removeWithRetry = useCallback(
-    async (
-      imageUrl: string,
-      model: "rembg" | "birefnet" | "bria",
-      preUpscale: boolean,
-    ): Promise<{ url: string; sourceUrl?: string }> => {
+    async (imageUrl: string, preUpscale: boolean): Promise<{ url: string; sourceUrl?: string }> => {
       try {
-        return await removeBg({ data: { imageUrl, model, preUpscale } });
+        return await removeBg({ data: { imageUrl, preUpscale } });
       } catch {
-        return await removeBg({ data: { imageUrl, model, preUpscale } });
+        return await removeBg({ data: { imageUrl, preUpscale } });
       }
     },
     [removeBg],
@@ -146,20 +142,13 @@ export function StudioWorkspace({
         });
         const preUpscale = Math.max(dims.w, dims.h) < 900;
 
-        // Rembg is the fast primary (~1-2s, Photoroom-class latency).
-        // Birefnet is the outage fallback.
+        // Rembg-only path: fastest and predictable, with no QC or slow fallback model.
         updateJob(job.id, { status: "removing", progress: 30 });
-        let matted: { url: string };
-        try {
-          matted = await removeWithRetry(dataUrl, "rembg", preUpscale);
-        } catch {
-          matted = await removeWithRetry(dataUrl, "birefnet", preUpscale);
-        }
+        const matted = await removeWithRetry(dataUrl, preUpscale);
         updateJob(job.id, { status: "compositing", progress: 60 });
         let { blob, compliance } = await postProcess(matted.url, {
           amazonPreset: amazonRef.current,
           softShadow: shadowRef.current,
-          aggressiveDebris: false,
         });
 
         const resultUrl = URL.createObjectURL(blob);
@@ -230,7 +219,7 @@ export function StudioWorkspace({
       setJobs((prev) => [...newJobs, ...prev]);
       setActiveId(newJobs[0]?.id ?? null);
 
-      // Concurrency-limited processing (max 5 in flight)
+      // Concurrency-limited processing
       let cursor = 0;
       const workers: Promise<void>[] = [];
       const next = async (): Promise<void> => {
@@ -309,7 +298,7 @@ export function StudioWorkspace({
           Drop up to 50 photos — JPEG, PNG, WEBP
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Batch supported (12 concurrent). Max 20MB per file. {credits} credit
+          Batch supported (8 concurrent). Max 20MB per file. {credits} credit
           {credits === 1 ? "" : "s"} remaining.
         </p>
         <div className="mt-5 flex flex-col items-center gap-2">

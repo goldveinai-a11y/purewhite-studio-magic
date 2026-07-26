@@ -7,8 +7,6 @@
 export type PostProcessOptions = {
   amazonPreset: boolean;
   softShadow: boolean;
-  /** Raise speck threshold (0.5% -> 3%) when the AI QC judge flagged debris. */
-  aggressiveDebris?: boolean;
 };
 
 const AMAZON_SIZE = 1000;
@@ -854,13 +852,8 @@ export async function postProcess(
   const sctx = src.getContext("2d");
   if (!sctx) throw new Error("Canvas 2D unavailable");
   sctx.drawImage(img, 0, 0);
-  // Minimal, non-destructive post-processing — matches what Photoroom
-  // actually does: cut the background, keep everything else untouched.
-  // The old aggressive passes (debris removal, hole fill, edge decontam)
-  // MANGLED real content — they inflated splashes and cut thin structures.
-  // We only fill enclosed holes (safe) and leave the subject as Bria
-  // returned it. Bria's mask is already clean on normal photos; on messy
-  // photos (splashes, hands) we now preserve them instead of butchering.
+  // Minimal, non-destructive post-processing: cut the background, keep the
+  // product itself intact, then only apply safe canvas finishing.
   fillInteriorHoles(sctx, src.width, src.height);
   // Snap thin filaments between product and splashes/dust/mist, then drop
   // any leftover disconnected specks. Erosion is capped so thin real
@@ -949,30 +942,4 @@ export async function fileToDataUrl(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error ?? new Error("read failed"));
     reader.readAsDataURL(file);
   });
-}
-
-
-/**
- * Downscale an image (URL or Blob) to a small JPEG data URL for the AI QC
- * judge — keeps Claude vision cost at ~fractions of a cent per photo.
- */
-export async function toJudgeThumb(source: string | Blob, max = 512): Promise<string> {
-  const url = typeof source === "string" ? source : URL.createObjectURL(source);
-  try {
-    const img = await loadImage(url);
-    const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-    const w = Math.max(1, Math.round(img.naturalWidth * scale));
-    const h = Math.max(1, Math.round(img.naturalHeight * scale));
-    const c = document.createElement("canvas");
-    c.width = w;
-    c.height = h;
-    const ctx = c.getContext("2d");
-    if (!ctx) throw new Error("Canvas 2D unavailable");
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(img, 0, 0, w, h);
-    return c.toDataURL("image/jpeg", 0.8);
-  } finally {
-    if (typeof source !== "string") URL.revokeObjectURL(url);
-  }
 }
