@@ -42,7 +42,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StudioWorkspace } from "@/components/studio-workspace";
 import heroSneakerBefore from "@/assets/hero-sneaker-before.jpg.asset.json";
-import heroSneakerAfter from "@/assets/hero-sneaker-after.jpg.asset.json";
+// v2 after-sample: regenerated through the current pipeline (interior alpha
+// solidification + edge decontamination) — the old CDN asset had a warm
+// table-color tint on the white midsole, contradicting the #FFFFFF claim.
+import heroSneakerAfterV2 from "@/assets/hero-sneaker-after-v2.png";
 import sellersHeadphonesBefore from "@/assets/sellers-headphones-before.jpg.asset.json";
 import sellersHeadphonesAfter from "@/assets/sellers-headphones-after.jpg.asset.json";
 import agenciesPerfumeBefore from "@/assets/agencies-perfume-before.jpg.asset.json";
@@ -366,7 +369,7 @@ function Hero({
                       pos={sliderPos}
                       setPos={setSliderPos}
                       beforeImage={heroSneakerBefore.url}
-                      afterImage={heroSneakerAfter.url}
+                      afterImage={heroSneakerAfterV2}
                     />
                   </div>
 
