@@ -170,6 +170,122 @@ function drawShadowForSegment(
   }
 }
 
+function fillInteriorHoles(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): void {
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  const total = width * height;
+  const ALPHA_THRESHOLD = 20;
+
+  const bg = new Uint8Array(total);
+  for (let i = 0; i < total; i++) {
+    bg[i] = data[i * 4 + 3] <= ALPHA_THRESHOLD ? 1 : 0;
+  }
+
+  const outside = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  let qHead = 0;
+  let qTail = 0;
+  for (let x = 0; x < width; x++) {
+    for (const y of [0, height - 1]) {
+      const idx = y * width + x;
+      if (bg[idx] && !outside[idx]) {
+        outside[idx] = 1;
+        queue[qTail++] = idx;
+      }
+    }
+  }
+  for (let y = 0; y < height; y++) {
+    for (const x of [0, width - 1]) {
+      const idx = y * width + x;
+      if (bg[idx] && !outside[idx]) {
+        outside[idx] = 1;
+        queue[qTail++] = idx;
+      }
+    }
+  }
+  while (qHead < qTail) {
+    const idx = queue[qHead++];
+    const x = idx % width;
+    const y = (idx / width) | 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      const ny = y + dy;
+      if (ny < 0 || ny >= height) continue;
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = x + dx;
+        if (nx < 0 || nx >= width) continue;
+        const nIdx = ny * width + nx;
+        if (outside[nIdx] || !bg[nIdx]) continue;
+        outside[nIdx] = 1;
+        queue[qTail++] = nIdx;
+      }
+    }
+  }
+
+  let holeCount = 0;
+  const isHole = new Uint8Array(total);
+  for (let i = 0; i < total; i++) {
+    if (bg[i] && !outside[i]) {
+      isHole[i] = 1;
+      holeCount++;
+    }
+  }
+  if (holeCount === 0) return;
+
+  const claimed = new Uint8Array(total);
+  const rOut = new Uint8Array(total);
+  const gOut = new Uint8Array(total);
+  const bOut = new Uint8Array(total);
+  let qh2 = 0;
+  let qt2 = 0;
+  const queue2 = new Int32Array(total);
+  for (let i = 0; i < total; i++) {
+    if (!bg[i]) {
+      rOut[i] = data[i * 4];
+      gOut[i] = data[i * 4 + 1];
+      bOut[i] = data[i * 4 + 2];
+      claimed[i] = 1;
+      queue2[qt2++] = i;
+    }
+  }
+  while (qh2 < qt2) {
+    const idx = queue2[qh2++];
+    const x = idx % width;
+    const y = (idx / width) | 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      const ny = y + dy;
+      if (ny < 0 || ny >= height) continue;
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = x + dx;
+        if (nx < 0 || nx >= width) continue;
+        const nIdx = ny * width + nx;
+        if (claimed[nIdx] || !isHole[nIdx]) continue;
+        rOut[nIdx] = rOut[idx];
+        gOut[nIdx] = gOut[idx];
+        bOut[nIdx] = bOut[idx];
+        claimed[nIdx] = 1;
+        queue2[qt2++] = nIdx;
+      }
+    }
+  }
+
+  for (let i = 0; i < total; i++) {
+    if (isHole[i]) {
+      data[i * 4] = rOut[i];
+      data[i * 4 + 1] = gOut[i];
+      data[i * 4 + 2] = bOut[i];
+      data[i * 4 + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
 /**
  * Remove disconnected foreground blobs (paint splashes, dust, stray props
  * the AI matting model treats as "salient") so only the actual product
@@ -533,6 +649,7 @@ export async function postProcess(
   const sctx = src.getContext("2d");
   if (!sctx) throw new Error("Canvas 2D unavailable");
   sctx.drawImage(img, 0, 0);
+  fillInteriorHoles(sctx, src.width, src.height);
   removeDisconnectedDebris(sctx, src.width, src.height);
   decontaminateEdgeColors(sctx, src.width, src.height);
   const bounds = findBounds(sctx.getImageData(0, 0, src.width, src.height));
