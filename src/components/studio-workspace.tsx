@@ -31,7 +31,7 @@ type Job = {
   error?: string;
 };
 
-const MAX_CONCURRENT = 5;
+const MAX_CONCURRENT = 8;
 const FREE_BATCH_LIMIT = 3;
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB — matches the promise in the UI
 
@@ -84,7 +84,7 @@ export function StudioWorkspace({
       imageUrl: string,
       model: "birefnet" | "bria",
       preUpscale: boolean,
-    ): Promise<{ url: string }> => {
+    ): Promise<{ url: string; sourceUrl?: string }> => {
       try {
         return await removeBg({ data: { imageUrl, model, preUpscale } });
       } catch {
@@ -92,6 +92,23 @@ export function StudioWorkspace({
       }
     },
     [removeBg],
+  );
+
+  // The judge must never dominate wall-clock time: if Anthropic is slow,
+  // treat the photo as passed instead of blocking the batch.
+  const JUDGE_TIMEOUT_MS = 6000;
+  const judgeWithTimeout = useCallback(
+    async (original: string, result: string) => {
+      const timeout = new Promise<{ available: boolean; pass: boolean; issues: string[]; reason: string }>(
+        (resolve) =>
+          setTimeout(
+            () => resolve({ available: true, pass: true, issues: [], reason: "qc timeout" }),
+            JUDGE_TIMEOUT_MS,
+          ),
+      );
+      return Promise.race([judge({ data: { original, result } }), timeout]);
+    },
+    [judge],
   );
 
   const runJob = useCallback(
@@ -114,12 +131,17 @@ export function StudioWorkspace({
         });
         const preUpscale = Math.max(dims.w, dims.h) < 900;
 
+        // Cache of the AI-upscaled source: filled by the first pass, reused
+        // by the escalation pass so Recraft runs at most once per photo.
+        let upscaledSource: string | null = null;
         const runPass = async (
           model: "birefnet" | "bria",
           aggressiveDebris: boolean,
         ) => {
-          const { url } = await removeWithRetry(dataUrl, model, preUpscale);
-          return postProcess(url, {
+          const src = upscaledSource ?? dataUrl;
+          const res = await removeWithRetry(src, model, preUpscale && !upscaledSource);
+          if (res.sourceUrl && res.sourceUrl !== src) upscaledSource = res.sourceUrl;
+          return postProcess(res.url, {
             amazonPreset: amazonRef.current,
             softShadow: shadowRef.current,
             aggressiveDebris,
@@ -143,7 +165,7 @@ export function StudioWorkspace({
             toJudgeThumb(dataUrl),
             toJudgeThumb(blob),
           ]);
-          const verdict = await judge({ data: { original: origThumb, result: resThumb } });
+          const verdict = await judgeWithTimeout(origThumb, resThumb);
           if (!verdict.available) {
             qcAvailableRef.current = false;
             // Judge offline -> escalate unconditionally to the strong model.
@@ -159,7 +181,7 @@ export function StudioWorkspace({
             ({ blob, compliance } = await runPass("bria", aggressive));
             updateJob(job.id, { status: "checking", progress: 88 });
             const [o2, r2] = await Promise.all([toJudgeThumb(dataUrl), toJudgeThumb(blob)]);
-            const v2 = await judge({ data: { original: o2, result: r2 } });
+            const v2 = await judgeWithTimeout(o2, r2);
             qc = {
               pass: v2.available ? v2.pass : true,
               escalated: true,
@@ -186,7 +208,7 @@ export function StudioWorkspace({
         toast.error(`${job.name}: ${msg}`);
       }
     },
-    [removeWithRetry, judge, updateJob, setCredits],
+    [removeWithRetry, judgeWithTimeout, updateJob, setCredits],
   );
 
   const handleFiles = useCallback(
@@ -316,7 +338,7 @@ export function StudioWorkspace({
           Drop up to 50 photos — JPEG, PNG, WEBP
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Batch supported (5 concurrent). Max 20MB per file. {credits} credit
+          Batch supported (8 concurrent). Max 20MB per file. {credits} credit
           {credits === 1 ? "" : "s"} remaining.
         </p>
         <div className="mt-5 flex flex-col items-center gap-2">

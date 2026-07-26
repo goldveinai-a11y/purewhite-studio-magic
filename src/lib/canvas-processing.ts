@@ -484,7 +484,7 @@ function removeDisconnectedDebris(
   for (let i = 1; i < nextLabel; i++) {
     if (areas[i] > maxArea) maxArea = areas[i];
   }
-  const keepThreshold = Math.max(64, maxArea * (aggressive ? 0.03 : 0.005));
+  const keepThreshold = Math.max(64, maxArea * (aggressive ? 0.08 : 0.005));
 
   let changed = false;
   for (let i = 0; i < total; i++) {

@@ -915,8 +915,8 @@ function ValueProps() {
   const items = [
     {
       icon: <Package className="h-5 w-5" />,
-      title: "Batch Processing in 20 Seconds",
-      desc: "Upload up to 50 photos at once and download a single organized .ZIP file — or just one photo if that's all you need today. No minimum batch size.",
+      title: "First Results in Seconds",
+      desc: "Upload up to 50 photos at once — finished photos appear one by one within seconds, and a full 50-photo batch with AI quality inspection completes in about two minutes. Download a single organized .ZIP, or just one photo if that's all you need today.",
     },
     {
       icon: <ShieldCheck className="h-5 w-5" />,

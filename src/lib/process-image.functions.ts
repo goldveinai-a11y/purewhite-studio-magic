@@ -93,7 +93,10 @@ export const removeBackground = createServerFn({ method: "POST" })
     const json = (await res.json()) as FalResult;
     const outUrl = json.image?.url ?? json.images?.[0]?.url;
     if (!outUrl) throw new Error("fal.ai returned no image URL");
-    return { url: outUrl, model: data.model };
+    // sourceUrl differs from input when pre-upscale ran — the client caches
+    // it so an escalation pass reuses the already-upscaled source (saves
+    // one Recraft call: ~4s and \$0.004 per escalated photo).
+    return { url: outUrl, model: data.model, sourceUrl };
   });
 
 export type QcVerdict = {
