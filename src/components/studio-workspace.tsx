@@ -92,9 +92,6 @@ export function StudioWorkspace({
   // badges) show a DIFFERENT photo's result than the one the user clicked —
   // the "result doesn't match the source photo" bug.
   const [activeId, setActiveId] = useState<string | null>(null);
-  // Batch selection for the "Reprocess selected in HD" toolbar.
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [hdUsed, setHdUsed] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const removeBg = useServerFn(removeBackground);
 
@@ -277,84 +274,7 @@ export function StudioWorkspace({
 
   const remove = (id: string) => {
     setJobs((prev) => prev.filter((j) => j.id !== id));
-    setSelected((prev) => {
-      if (!prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
   };
-
-  const toggleSelected = (id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  // HD reprocess: same source → Birefnet Heavy for hair/fabric/complex edges.
-  // Does NOT decrement credits (already paid on the first pass).
-  const reprocessHd = useCallback(
-    async (ids: string[]) => {
-      const targets = jobs.filter((j) => ids.includes(j.id) && j.status === "done");
-      if (targets.length === 0) return;
-
-      // Free-tier gate: 1 HD prompt free, then paywall.
-      const isPaid = credits >= 999;
-      if (!isPaid && hdUsed + targets.length > FREE_HD_LIMIT) {
-        onPaywall();
-        toast.info("HD reprocessing is unlimited on Pro. Upgrade to continue.");
-        return;
-      }
-      if (!isPaid) setHdUsed((n) => n + targets.length);
-
-      await Promise.all(
-        targets.map(async (job) => {
-          try {
-            updateJob(job.id, { status: "hd", progress: 20 });
-            const srcFile = await (await fetch(job.originalUrl))
-              .blob()
-              .then((b) => new File([b], job.name, { type: b.type || "image/png" }));
-            const dataUrl = await downscaleForUpload(srcFile);
-
-            const dims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
-              const probe = new Image();
-              probe.onload = () => resolve({ w: probe.naturalWidth, h: probe.naturalHeight });
-              probe.onerror = () => reject(new Error("Failed to read image dimensions"));
-              probe.src = dataUrl;
-            });
-            const preUpscale = Math.max(dims.w, dims.h) < 900;
-
-            updateJob(job.id, { status: "hd", progress: 55 });
-            const matted = await removeWithRetry(dataUrl, "birefnet", preUpscale);
-            updateJob(job.id, { status: "hd", progress: 80 });
-            const { blob, compliance } = await postProcess(matted.url, {
-              amazonPreset: amazonRef.current,
-              softShadow: shadowRef.current,
-              aggressiveDebris: true,
-            });
-            const resultUrl = URL.createObjectURL(blob);
-            updateJob(job.id, {
-              status: "done",
-              progress: 100,
-              resultBlob: blob,
-              resultUrl,
-              compliance,
-              hd: true,
-            });
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : "HD reprocess failed";
-            updateJob(job.id, { status: "done", error: msg });
-            toast.error(`${job.name}: ${msg}`);
-          }
-        }),
-      );
-      setSelected(new Set());
-    },
-    [jobs, credits, hdUsed, onPaywall, removeWithRetry, updateJob],
-  );
 
   return (
     <>
@@ -407,36 +327,18 @@ export function StudioWorkspace({
       {jobs.length > 0 && (
         <div className="mt-6 grid gap-6 md:grid-cols-[1.4fr_1fr]">
           <div className="space-y-3">
-            <ResultPreview
-              job={active}
-              onHd={active ? () => void reprocessHd([active.id]) : undefined}
-            />
+            <ResultPreview job={active} />
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Batch Queue ({jobs.length})
-              </p>
-              {selected.size > 0 && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="h-7 rounded-full px-3 text-xs font-semibold"
-                  onClick={() => void reprocessHd(Array.from(selected))}
-                >
-                  <Sparkles className="mr-1 h-3 w-3" />
-                  Reprocess {selected.size} in HD
-                </Button>
-              )}
-            </div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Batch Queue ({jobs.length})
+            </p>
             <div className="max-h-80 space-y-2 overflow-auto pr-1">
               {jobs.map((j) => (
                 <QueueRow
                   key={j.id}
                   job={j}
                   active={j.id === (active?.id ?? null)}
-                  selected={selected.has(j.id)}
-                  onToggleSelect={() => toggleSelected(j.id)}
                   onSelect={() => setActiveId(j.id)}
                   onRemove={() => remove(j.id)}
                 />
@@ -466,16 +368,9 @@ export function StudioWorkspace({
   );
 }
 
-function ResultPreview({
-  job,
-  onHd,
-}: {
-  job: Job | undefined;
-  onHd?: () => void;
-}) {
+function ResultPreview({ job }: { job: Job | undefined }) {
   if (!job) return null;
   const showResult = job.status === "done" && job.resultUrl;
-  const isHdRunning = job.status === "hd";
   return (
     <div
       className="relative aspect-square w-full overflow-hidden rounded-xl border border-border/70 bg-white"
@@ -486,7 +381,7 @@ function ResultPreview({
         alt={job.name}
         className="h-full w-full object-contain"
       />
-      {(!showResult || isHdRunning) && (
+      {!showResult && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/70 backdrop-blur-sm">
           {job.status === "error" ? (
             <div className="flex items-center gap-2 text-sm font-medium text-destructive">
@@ -496,7 +391,7 @@ function ResultPreview({
             <>
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
               <p className="text-sm font-medium text-foreground capitalize">
-                {job.status === "hd" ? "Reprocessing in HD" : job.status}…
+                {job.status}…
               </p>
               <div className="w-40">
                 <Progress value={job.progress} />
@@ -507,14 +402,6 @@ function ResultPreview({
       )}
       {showResult && job.compliance && (
         <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
-          {job.hd && (
-            <span
-              className="rounded-md bg-indigo-600 px-2 py-0.5 text-[10px] font-semibold text-white"
-              title="Reprocessed on the premium HD model"
-            >
-              ✦ HD
-            </span>
-          )}
           <span
             className={`rounded-md px-2 py-0.5 text-[10px] font-semibold text-white ${
               job.compliance.backgroundPure.pass ? "bg-emerald-600" : "bg-amber-500"
@@ -538,17 +425,6 @@ function ResultPreview({
       <span className="absolute right-2 top-2 rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
         {showResult ? "AFTER · #FFFFFF" : "PROCESSING"}
       </span>
-      {showResult && onHd && !isHdRunning && (
-        <button
-          type="button"
-          onClick={onHd}
-          className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-slate-900/85 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg backdrop-blur transition-colors hover:bg-slate-900"
-          title="Not happy with edges? Reprocess this photo on our premium HD model."
-        >
-          <Sparkles className="h-3 w-3" />
-          {job.hd ? "Reprocess HD again" : "Reprocess in HD"}
-        </button>
-      )}
     </div>
   );
 }
@@ -556,15 +432,11 @@ function ResultPreview({
 function QueueRow({
   job,
   active,
-  selected,
-  onToggleSelect,
   onSelect,
   onRemove,
 }: {
   job: Job;
   active: boolean;
-  selected: boolean;
-  onToggleSelect: () => void;
   onSelect: () => void;
   onRemove: () => void;
 }) {
@@ -578,18 +450,6 @@ function QueueRow({
           : "border-border/60 bg-background hover:bg-accent/40"
       }`}
     >
-      {job.status === "done" ? (
-        <input
-          type="checkbox"
-          checked={selected}
-          onClick={(e) => e.stopPropagation()}
-          onChange={onToggleSelect}
-          className="h-4 w-4 flex-shrink-0 cursor-pointer accent-primary"
-          title="Select for HD reprocess"
-        />
-      ) : (
-        <span className="h-4 w-4 flex-shrink-0" />
-      )}
       <img
         src={job.resultUrl ?? job.originalUrl}
         alt=""
@@ -600,7 +460,7 @@ function QueueRow({
         <div className="mt-1 flex items-center gap-2">
           <Progress value={job.progress} className="h-1" />
           <span className="text-[10px] uppercase text-muted-foreground">
-            {job.status === "hd" ? "hd…" : job.status}
+            {job.status}
           </span>
         </div>
       </div>
