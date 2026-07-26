@@ -13,8 +13,8 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { qcJudge, removeBackground } from "@/lib/process-image.functions";
-import { fileToDataUrl, postProcess, toJudgeThumb, type ComplianceResult } from "@/lib/canvas-processing";
+import { removeBackground } from "@/lib/process-image.functions";
+import { fileToDataUrl, postProcess, type ComplianceResult } from "@/lib/canvas-processing";
 
 type JobStatus = "queued" | "uploading" | "removing" | "compositing" | "checking" | "done" | "error";
 
@@ -57,10 +57,6 @@ export function StudioWorkspace({
   const [activeId, setActiveId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const removeBg = useServerFn(removeBackground);
-  const judge = useServerFn(qcJudge);
-  // null = unknown yet; false = ANTHROPIC_KEY absent -> skip cascade, go
-  // straight to the strong model (previous behavior).
-  const qcAvailableRef = useRef<boolean | null>(null);
 
   // Refs so in-flight batch jobs always read the CURRENT toggle values,
   // even if the user flips them mid-batch.
@@ -94,23 +90,6 @@ export function StudioWorkspace({
     [removeBg],
   );
 
-  // The judge must never dominate wall-clock time: if Anthropic is slow,
-  // treat the photo as passed instead of blocking the batch.
-  const JUDGE_TIMEOUT_MS = 6000;
-  const judgeWithTimeout = useCallback(
-    async (original: string, result: string) => {
-      const timeout = new Promise<{ available: boolean; pass: boolean; issues: string[]; reason: string }>(
-        (resolve) =>
-          setTimeout(
-            () => resolve({ available: true, pass: true, issues: [], reason: "qc timeout" }),
-            JUDGE_TIMEOUT_MS,
-          ),
-      );
-      return Promise.race([judge({ data: { original, result } }), timeout]);
-    },
-    [judge],
-  );
-
   const runJob = useCallback(
     async (job: Job) => {
       try {
@@ -131,15 +110,10 @@ export function StudioWorkspace({
         });
         const preUpscale = Math.max(dims.w, dims.h) < 900;
 
-        // Speed-first architecture: ONE matting call on the strongest model
-        // (Bria), then the AI judge. A debris verdict is fixed by re-running
-        // the client-side cleanup in aggressive mode on the SAME matting
-        // result — zero extra API calls, ~1s. The old sequential cascade
-        // (cheap model -> judge -> strong model -> judge) saved cost but
-        // doubled wall time; speed wins.
+        // One matting call on Bria (best masks), then deterministic canvas
+        // post-processing. No AI judge in the path: it never changed the
+        // output on real photos, only added latency and cost.
         updateJob(job.id, { status: "removing", progress: 30 });
-        // Judge thumbnail of the original: computed in parallel with matting.
-        const origThumbPromise = toJudgeThumb(dataUrl).catch(() => null);
         let matted: { url: string };
         try {
           matted = await removeWithRetry(dataUrl, "bria", preUpscale);
@@ -154,61 +128,14 @@ export function StudioWorkspace({
           aggressiveDebris: false,
         });
 
-        // SHOW THE RESULT NOW. QC runs in the background and only updates
-        // the badge (or silently re-does debris cleanup) afterwards — the
-        // user never waits on Claude. This is the single biggest wall-time
-        // win: perceived time = matting + composite only (~6-9s), judge
-        // latency is off the critical path.
-        const resultUrl0 = URL.createObjectURL(blob);
+        const resultUrl = URL.createObjectURL(blob);
         updateJob(job.id, {
           status: "done",
           progress: 100,
           resultBlob: blob,
-          resultUrl: resultUrl0,
+          resultUrl,
           compliance,
         });
-
-        if (qcAvailableRef.current !== false) {
-          void (async () => {
-            try {
-              const [origThumb, resThumb] = await Promise.all([
-                origThumbPromise,
-                toJudgeThumb(blob),
-              ]);
-              if (!origThumb) return;
-              const verdict = await judgeWithTimeout(origThumb, resThumb);
-              if (!verdict.available) {
-                qcAvailableRef.current = false;
-                return;
-              }
-              qcAvailableRef.current = true;
-              if (verdict.pass) {
-                updateJob(job.id, { qc: { pass: true, escalated: false } });
-              } else if (verdict.issues.includes("debris")) {
-                const redo = await postProcess(matted.url, {
-                  amazonPreset: amazonRef.current,
-                  softShadow: shadowRef.current,
-                  aggressiveDebris: true,
-                });
-                updateJob(job.id, {
-                  resultBlob: redo.blob,
-                  resultUrl: URL.createObjectURL(redo.blob),
-                  compliance: redo.compliance,
-                  qc: { pass: true, escalated: true, reason: verdict.reason },
-                });
-              } else {
-                // blur / cut_object / dirty bg on the strongest model:
-                // surface honestly so the user can re-shoot.
-                updateJob(job.id, {
-                  qc: { pass: false, escalated: false, reason: verdict.reason },
-                });
-              }
-            } catch {
-              /* background QC failure never affects the delivered photo */
-            }
-          })();
-        }
-
         // Credit already reserved up-front in handleFiles — nothing to do here.
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Processing failed";
@@ -218,7 +145,7 @@ export function StudioWorkspace({
         toast.error(`${job.name}: ${msg}`);
       }
     },
-    [removeWithRetry, judgeWithTimeout, updateJob, setCredits],
+    [removeWithRetry, updateJob, setCredits],
   );
 
   const handleFiles = useCallback(
