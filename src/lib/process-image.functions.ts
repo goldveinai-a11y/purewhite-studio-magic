@@ -142,9 +142,10 @@ export const qcJudge = createServerFn({ method: "POST" })
     const prompt = [
       "You are a strict QC inspector for e-commerce product photos.",
       "Image 1 is the original photo. Image 2 is the processed result on a white background.",
+      "The result must contain ONLY the product itself on white. Decorative scene elements from the original — splashes, drips, spills, smoke, dust clouds, confetti, water, scattered props — are NOT part of the product and must be ABSENT from the result, even though they appear in the original photo.",
       "Fail the result if ANY of these are true:",
       "- part of the product or its structural accessories (hanger, hook, strap, box, handle, second item of a pair) is cut off or missing compared to the original",
-      "- stray debris remains: paint splashes, splatter, specks, floating fragments that are not the product",
+      "- ANY splash, drip, spill, smoke, or scattered fragment remains in the result (issue: debris) — presence in the original does NOT make it acceptable",
       "- the result is significantly blurrier than the original",
       "- leftover background patches or non-white contamination around the subject",
       "Hands, arms, legs, or a person holding/wearing the product are ACCEPTABLE and must not cause a fail.",
