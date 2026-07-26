@@ -128,9 +128,11 @@ export function StudioWorkspace({
           probe.onerror = () => reject(new Error("Failed to read image dimensions"));
           probe.src = dataUrl;
         });
-        // Amazon требует ≥1000px по длинной стороне. Порог 1200 = 20% запас:
-        // если исходник меньше — AI-апскейл до 2K перед rembg, иначе прямой путь.
-        const preUpscale = Math.max(dims.w, dims.h) < 1200;
+        // Amazon требует ≥1000px по длинной стороне. Порог 900 — страховка
+        // только для совсем маленьких исходников; фото с телефона/DSLR идут
+        // прямым путём в rembg без AI-апскейла (который может галлюцинировать
+        // детали и мешать матированию).
+        const preUpscale = Math.max(dims.w, dims.h) < 900;
 
         // Rembg-only path: без silent retry и slow fallback — предсказуемое время.
         updateJob(job.id, { status: "removing", progress: 30 });
