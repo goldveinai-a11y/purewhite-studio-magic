@@ -319,7 +319,7 @@ function Hero({
           >
             <div className="space-y-6 p-6 md:p-8">
               <div className="grid gap-6 md:grid-cols-[1.4fr_1fr]">
-                <div className="flex flex-col gap-4">
+                <div className="flex min-w-0 flex-col gap-4">
                   <StudioWorkspace
                   amazonPreset={amazonPreset}
                   softShadow={softShadow}
@@ -328,7 +328,7 @@ function Hero({
                   onPaywall={onPaywall}
                 />
                 </div>
-                <div className="flex flex-col gap-4">
+                <div className="flex min-w-0 flex-col gap-4">
                   <div>
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Control Panel
@@ -356,7 +356,7 @@ function Hero({
                 </div>
               </div>
               <div className="grid gap-6 md:grid-cols-[1.4fr_1fr]">
-                <div className="flex flex-col gap-4">
+                <div className="flex min-w-0 flex-col gap-4">
                   <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
                   <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Sample Preview
@@ -370,7 +370,7 @@ function Hero({
                 </div>
               
                 </div>
-                <div className="flex flex-col gap-4">
+                <div className="flex min-w-0 flex-col gap-4">
                   <div className="mt-2 space-y-2 rounded-xl border border-border/60 bg-muted/30 p-4">
                   <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Every Export Includes
@@ -1007,14 +1007,13 @@ function HowItWorks() {
               className="relative rounded-2xl border border-border/70 bg-background p-7"
               style={{ boxShadow: "var(--shadow-card)" }}
             >
-              <span className="font-display text-5xl font-extrabold text-primary/10">
-                {s.n}
-              </span>
-              <div className="-mt-6 flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <div className="grid h-10 w-10 place-items-center rounded-xl bg-accent text-primary">
                   {s.icon}
                 </div>
-                <h3 className="font-display text-lg font-bold">{s.title}</h3>
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Step {s.n}</span>
+              </div>
+              <h3 className="mt-3 font-display text-lg font-bold">{s.title}</h3>
               </div>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 {s.desc}
