@@ -449,7 +449,10 @@ function removeDisconnectedDebris(
   }
 
   // ---- Stage A: erosion-based bridge break ----
-  const erodeR = Math.max(3, Math.round(Math.min(width, height) * 0.005));
+  // Wider erosion so thicker splash-to-product bridges snap. Laces/straps
+  // at 2K resolution are typically 20-40px wide and survive this radius;
+  // they reattach during regrowth.
+  const erodeR = Math.max(6, Math.round(Math.min(width, height) * 0.012));
   const eroded = boxErode(fg, width, height, erodeR);
   const coreLabels = new Int32Array(total);
   const coreAreas: number[] = [0];
@@ -490,7 +493,7 @@ function removeDisconnectedDebris(
   if (coreNext > 1) {
     let maxCore = 0;
     for (let i = 1; i < coreNext; i++) if (coreAreas[i] > maxCore) maxCore = coreAreas[i];
-    const keepCoreMin = maxCore * (aggressive ? 0.35 : 0.2);
+    const keepCoreMin = maxCore * (aggressive ? 0.4 : 0.28);
     const keepCore = new Uint8Array(coreNext);
     for (let i = 1; i < coreNext; i++) keepCore[i] = coreAreas[i] >= keepCoreMin ? 1 : 0;
 
