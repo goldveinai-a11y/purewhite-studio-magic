@@ -8,6 +8,7 @@ import {
   X,
   Check,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -110,19 +111,6 @@ export function StudioWorkspace({
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   }, []);
 
-  // One silent rembg retry before giving up — transient fal.ai hiccups shouldn't
-  // cost the user a job, but we never switch to slower fallback models.
-  const removeWithRetry = useCallback(
-    async (imageUrl: string, preUpscale: boolean): Promise<{ url: string; sourceUrl?: string }> => {
-      try {
-        return await removeBg({ data: { imageUrl, preUpscale } });
-      } catch {
-        return await removeBg({ data: { imageUrl, preUpscale } });
-      }
-    },
-    [removeBg],
-  );
-
   const runJob = useCallback(
     async (job: Job) => {
       try {
@@ -140,11 +128,13 @@ export function StudioWorkspace({
           probe.onerror = () => reject(new Error("Failed to read image dimensions"));
           probe.src = dataUrl;
         });
-        const preUpscale = Math.max(dims.w, dims.h) < 900;
+        // Amazon требует ≥1000px по длинной стороне. Порог 1200 = 20% запас:
+        // если исходник меньше — AI-апскейл до 2K перед rembg, иначе прямой путь.
+        const preUpscale = Math.max(dims.w, dims.h) < 1200;
 
-        // Rembg-only path: fastest and predictable, with no QC or slow fallback model.
+        // Rembg-only path: без silent retry и slow fallback — предсказуемое время.
         updateJob(job.id, { status: "removing", progress: 30 });
-        const matted = await removeWithRetry(dataUrl, preUpscale);
+        const matted = await removeBg({ data: { imageUrl: dataUrl, preUpscale } });
         updateJob(job.id, { status: "compositing", progress: 60 });
         let { blob, compliance } = await postProcess(matted.url, {
           amazonPreset: amazonRef.current,
@@ -168,7 +158,7 @@ export function StudioWorkspace({
         toast.error(`${job.name}: ${msg}`);
       }
     },
-    [removeWithRetry, updateJob, setCredits],
+    [removeBg, updateJob, setCredits],
   );
 
   const handleFiles = useCallback(
@@ -265,6 +255,22 @@ export function StudioWorkspace({
     setJobs((prev) => prev.filter((j) => j.id !== id));
   };
 
+  const retry = useCallback(
+    (id: string) => {
+      const job = jobs.find((j) => j.id === id);
+      if (!job) return;
+      // Reserve credit again for the manual retry
+      if (credits <= 0) {
+        onPaywall();
+        return;
+      }
+      setCredits((c) => Math.max(0, c - 1));
+      updateJob(id, { status: "queued", progress: 5, error: undefined });
+      void runJob({ ...job, status: "queued", progress: 5, error: undefined });
+    },
+    [jobs, credits, onPaywall, setCredits, updateJob, runJob],
+  );
+
   return (
     <>
       <div
@@ -298,7 +304,7 @@ export function StudioWorkspace({
           Drop up to 50 photos — JPEG, PNG, WEBP
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Batch supported (8 concurrent). Max 20MB per file. {credits} credit
+          Up to 50 photos at once. Max 20MB per file. {credits} credit
           {credits === 1 ? "" : "s"} remaining.
         </p>
         <div className="mt-5 flex flex-col items-center gap-2">
@@ -314,42 +320,51 @@ export function StudioWorkspace({
       </div>
 
       {jobs.length > 0 && (
-        <div className="mt-6 grid gap-6 md:grid-cols-[1.4fr_1fr]">
-          <div className="space-y-3">
-            <ResultPreview job={active} />
-          </div>
+        <div className="mt-6 space-y-5">
+          {/* Large full-width preview */}
+          <ResultPreview job={active} />
+
+          {/* Horizontal thumbnail queue */}
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Batch Queue ({jobs.length})
-            </p>
-            <div className="max-h-80 space-y-2 overflow-auto pr-1">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Batch Queue ({jobs.length})
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Click a thumbnail to preview
+              </p>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-2">
               {jobs.map((j) => (
-                <QueueRow
+                <QueueThumb
                   key={j.id}
                   job={j}
                   active={j.id === (active?.id ?? null)}
                   onSelect={() => setActiveId(j.id)}
                   onRemove={() => remove(j.id)}
+                  onRetry={() => retry(j.id)}
                 />
               ))}
             </div>
-            <div className="grid gap-2 pt-2">
-              <Button
-                variant="outline"
-                className="w-full justify-center rounded-lg border-border/70 font-medium"
-                onClick={downloadOne}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download Single PNG (High-Res)
-              </Button>
-              <Button
-                className="w-full justify-center rounded-lg bg-primary font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
-                onClick={downloadZip}
-              >
-                <Package className="mr-2 h-4 w-4" />
-                Download All as .ZIP ({doneJobs.length})
-              </Button>
-            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button
+              variant="outline"
+              className="w-full justify-center rounded-lg border-border/70 font-medium"
+              onClick={downloadOne}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download Single PNG (High-Res)
+            </Button>
+            <Button
+              className="w-full justify-center rounded-lg bg-primary font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
+              onClick={downloadZip}
+            >
+              <Package className="mr-2 h-4 w-4" />
+              Download All as .ZIP ({doneJobs.length})
+            </Button>
           </div>
         </div>
       )}
@@ -418,58 +433,88 @@ function ResultPreview({ job }: { job: Job | undefined }) {
   );
 }
 
-function QueueRow({
+function QueueThumb({
   job,
   active,
   onSelect,
   onRemove,
+  onRetry,
 }: {
   job: Job;
   active: boolean;
   onSelect: () => void;
   onRemove: () => void;
+  onRetry: () => void;
 }) {
+  const statusColor =
+    job.status === "done"
+      ? "bg-emerald-500"
+      : job.status === "error"
+        ? "bg-red-500"
+        : "bg-amber-500";
+  const isBusy =
+    job.status !== "done" && job.status !== "error";
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`flex w-full items-center gap-3 rounded-lg border p-2 text-left transition-colors ${
-        active
-          ? "border-primary/60 bg-accent/60"
-          : "border-border/60 bg-background hover:bg-accent/40"
+    <div
+      className={`group relative flex-shrink-0 rounded-lg border-2 bg-white transition-all ${
+        active ? "border-primary shadow-[var(--shadow-elegant)]" : "border-border/60 hover:border-primary/40"
       }`}
+      title={`${job.name} — ${job.status}${job.error ? `: ${job.error}` : ""}`}
     >
-      <img
-        src={job.resultUrl ?? job.originalUrl}
-        alt=""
-        className="h-10 w-10 flex-shrink-0 rounded object-cover"
-      />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-semibold">{job.name}</p>
-        <div className="mt-1 flex items-center gap-2">
-          <Progress value={job.progress} className="h-1" />
-          <span className="text-[10px] uppercase text-muted-foreground">
-            {job.status}
-          </span>
-        </div>
-      </div>
-      {job.status === "done" ? (
-        <Check className="h-4 w-4 flex-shrink-0 text-primary" />
-      ) : job.status === "error" ? (
-        <AlertCircle className="h-4 w-4 flex-shrink-0 text-destructive" />
-      ) : (
-        <Loader2 className="h-4 w-4 flex-shrink-0 animate-spin text-muted-foreground" />
-      )}
+      <button
+        type="button"
+        onClick={onSelect}
+        className="block h-20 w-20 overflow-hidden rounded-md"
+      >
+        <img
+          src={job.resultUrl ?? job.originalUrl}
+          alt=""
+          className="h-full w-full object-cover"
+        />
+      </button>
+      {/* Status dot */}
       <span
+        className={`absolute left-1 top-1 h-2.5 w-2.5 rounded-full ring-2 ring-white ${statusColor}`}
+      />
+      {/* Busy spinner overlay */}
+      {isBusy && (
+        <span className="absolute inset-0 flex items-center justify-center rounded-md bg-white/40 backdrop-blur-[1px]">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        </span>
+      )}
+      {/* Retry on error */}
+      {job.status === "error" && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRetry();
+          }}
+          className="absolute inset-0 flex items-center justify-center rounded-md bg-red-500/15 text-red-700 hover:bg-red-500/25"
+          aria-label="Retry"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
+      )}
+      {/* Remove */}
+      <button
+        type="button"
         onClick={(e) => {
           e.stopPropagation();
           onRemove();
         }}
-        className="rounded p-1 text-muted-foreground hover:bg-muted"
+        aria-label="Remove"
+        className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-foreground text-background opacity-0 shadow transition-opacity group-hover:opacity-100"
       >
         <X className="h-3 w-3" />
-      </span>
-    </button>
+      </button>
+      {/* Done check */}
+      {job.status === "done" && (
+        <span className="absolute bottom-1 right-1 grid h-4 w-4 place-items-center rounded-full bg-emerald-500 text-white ring-2 ring-white">
+          <Check className="h-2.5 w-2.5" />
+        </span>
+      )}
+    </div>
   );
 }
 
