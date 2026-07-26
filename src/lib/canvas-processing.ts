@@ -859,6 +859,10 @@ export async function postProcess(
   // returned it. Bria's mask is already clean on normal photos; on messy
   // photos (splashes, hands) we now preserve them instead of butchering.
   fillInteriorHoles(sctx, src.width, src.height);
+  // Snap thin filaments between product and splashes/dust/mist, then drop
+  // any leftover disconnected specks. Erosion is capped so thin real
+  // structures (laces, straps, hanger hooks) reattach on regrowth.
+  removeDisconnectedDebris(sctx, src.width, src.height, false);
   const bounds = findBounds(sctx.getImageData(0, 0, src.width, src.height));
 
   const size = opts.amazonPreset
