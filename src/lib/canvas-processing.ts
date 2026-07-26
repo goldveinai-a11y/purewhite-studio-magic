@@ -758,10 +758,14 @@ export async function postProcess(
   const sctx = src.getContext("2d");
   if (!sctx) throw new Error("Canvas 2D unavailable");
   sctx.drawImage(img, 0, 0);
+  // Minimal, non-destructive post-processing — matches what Photoroom
+  // actually does: cut the background, keep everything else untouched.
+  // The old aggressive passes (debris removal, hole fill, edge decontam)
+  // MANGLED real content — they inflated splashes and cut thin structures.
+  // We only fill enclosed holes (safe) and leave the subject as Bria
+  // returned it. Bria's mask is already clean on normal photos; on messy
+  // photos (splashes, hands) we now preserve them instead of butchering.
   fillInteriorHoles(sctx, src.width, src.height);
-  removeDisconnectedDebris(sctx, src.width, src.height, opts.aggressiveDebris === true);
-  solidifyInteriorAlpha(sctx, src.width, src.height);
-  decontaminateEdgeColors(sctx, src.width, src.height);
   const bounds = findBounds(sctx.getImageData(0, 0, src.width, src.height));
 
   const size = opts.amazonPreset
@@ -791,7 +795,9 @@ export async function postProcess(
   // footprint at the ground line before drawing any shadow beneath it.
   const subjectLayer = renderFeatheredSubject(src, bounds, drawW, drawH, dx, dy, size);
   // Recover detail lost to upscaling small sources (thumbnails, phone crops).
-  sharpenLayer(subjectLayer, scale);
+  // No unsharp pass: it amplified JPEG grain on compressed sources and
+  // gave the "gritty" look. Bria + Recraft pre-upscale already deliver
+  // adequate sharpness; keep the subject as-is.
 
   // Soft drop shadow UNDER the object - drawn before the subject is
   // composited onto the output so it sits behind it. Nudge up by 1px so
