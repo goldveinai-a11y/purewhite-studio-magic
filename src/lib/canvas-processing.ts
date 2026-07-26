@@ -171,13 +171,20 @@ function drawShadowForSegment(
 }
 
 /**
- * Remove small disconnected foreground blobs (paint splashes, dust, stray
- * background props the AI matting model treats as "salient") so only the
- * actual product remains in the export. Runs an 8-connected flood fill over
- * the alpha channel, keeps components at least 40% the size of the largest
- * one found (this keeps genuine multi-item shots, e.g. a shoe pair with a
- * gap between them) and clears the alpha of everything smaller so it
- * renders as pure white background instead of floating debris.
+ * Remove disconnected foreground blobs (paint splashes, dust, stray props
+ * the AI matting model treats as "salient") so only the actual product
+ * remains. A pure alpha>0 connected-component pass is not enough because
+ * splash/mist effects often touch the product through a thin filament of
+ * pixels, fusing them into one blob. Instead this:
+ *   1. Eroded-mask pass: shrinks the foreground by a small radius so thin
+ *      bridges (a splash trail, a wisp) snap, revealing separate "core"
+ *      blobs for each real, solid shape.
+ *   2. Sizes each core and keeps only cores >= 35% of the largest one
+ *      (keeps genuine multi-item shots, e.g. a shoe pair with a gap).
+ *   3. Multi-source regrowth: grows every surviving core back through the
+ *      full, un-eroded foreground, so thin real details (laces, straps)
+ *      reattach to their parent product instead of being clipped.
+ * Anything left unclaimed by a kept core is cleared to transparent.
  */
 function removeDisconnectedDebris(
   ctx: CanvasRenderingContext2D,
@@ -188,27 +195,67 @@ function removeDisconnectedDebris(
   const data = imageData.data;
   const total = width * height;
   const ALPHA_THRESHOLD = 20;
+  const ERODE_RADIUS = Math.min(6, Math.max(2, Math.round(Math.min(width, height) / 200)));
+
+  const fg = new Uint8Array(total);
+  for (let i = 0; i < total; i++) {
+    fg[i] = data[i * 4 + 3] > ALPHA_THRESHOLD ? 1 : 0;
+  }
+
+  // Two-pass box erosion (horizontal min, then vertical min) to find "core"
+  // seeds - cheap O(width*height) sliding-window implementation.
+  const rowEroded = new Uint8Array(total);
+  for (let y = 0; y < height; y++) {
+    const base = y * width;
+    let zeroCount = 0;
+    for (let x = -ERODE_RADIUS; x <= ERODE_RADIUS; x++) {
+      if (x < 0 || x >= width || fg[base + x] === 0) zeroCount++;
+    }
+    for (let x = 0; x < width; x++) {
+      rowEroded[base + x] = zeroCount === 0 ? 1 : 0;
+      const outX = x - ERODE_RADIUS;
+      const inX = x + ERODE_RADIUS + 1;
+      const outBg = outX < 0 || fg[base + outX] === 0;
+      const inBg = inX >= width || fg[base + inX] === 0;
+      if (outBg) zeroCount--;
+      if (inBg) zeroCount++;
+    }
+  }
+
+  const core = new Uint8Array(total);
+  for (let x = 0; x < width; x++) {
+    let zeroCount = 0;
+    for (let y = -ERODE_RADIUS; y <= ERODE_RADIUS; y++) {
+      if (y < 0 || y >= height || rowEroded[y * width + x] === 0) zeroCount++;
+    }
+    for (let y = 0; y < height; y++) {
+      core[y * width + x] = zeroCount === 0 ? 1 : 0;
+      const outY = y - ERODE_RADIUS;
+      const inY = y + ERODE_RADIUS + 1;
+      const outBg = outY < 0 || rowEroded[outY * width + x] === 0;
+      const inBg = inY >= height || rowEroded[inY * width + x] === 0;
+      if (outBg) zeroCount--;
+      if (inBg) zeroCount++;
+    }
+  }
+
   const labels = new Int32Array(total);
   const areas: number[] = [0];
   let nextLabel = 1;
   const queue = new Int32Array(total);
 
   for (let start = 0; start < total; start++) {
-    if (labels[start] !== 0) continue;
-    if (data[start * 4 + 3] <= ALPHA_THRESHOLD) continue;
-
+    if (core[start] !== 1 || labels[start] !== 0) continue;
     let qHead = 0;
     let qTail = 0;
     queue[qTail++] = start;
     labels[start] = nextLabel;
     let area = 0;
-
     while (qHead < qTail) {
       const idx = queue[qHead++];
       area++;
       const x = idx % width;
       const y = (idx / width) | 0;
-
       for (let dy = -1; dy <= 1; dy++) {
         const ny = y + dy;
         if (ny < 0 || ny >= height) continue;
@@ -217,29 +264,54 @@ function removeDisconnectedDebris(
           const nx = x + dx;
           if (nx < 0 || nx >= width) continue;
           const nIdx = ny * width + nx;
-          if (labels[nIdx] !== 0) continue;
-          if (data[nIdx * 4 + 3] <= ALPHA_THRESHOLD) continue;
+          if (labels[nIdx] !== 0 || core[nIdx] !== 1) continue;
           labels[nIdx] = nextLabel;
           queue[qTail++] = nIdx;
         }
       }
     }
-
     areas[nextLabel] = area;
     nextLabel++;
   }
 
-  if (nextLabel <= 2) return;
+  if (nextLabel <= 1) return;
 
   let maxArea = 0;
   for (let i = 1; i < nextLabel; i++) {
     if (areas[i] > maxArea) maxArea = areas[i];
   }
 
-  const keepThreshold = maxArea * 0.4;
+  const keepThreshold = maxArea * 0.35;
   const keep = new Uint8Array(nextLabel);
   for (let i = 1; i < nextLabel; i++) {
     keep[i] = areas[i] >= keepThreshold ? 1 : 0;
+  }
+
+  // Multi-source regrowth: expand every core label back through the full
+  // (un-eroded) foreground so thin real details reattach to their blob.
+  let qHead = 0;
+  let qTail = 0;
+  for (let i = 0; i < total; i++) {
+    if (labels[i] !== 0) queue[qTail++] = i;
+  }
+  while (qHead < qTail) {
+    const idx = queue[qHead++];
+    const label = labels[idx];
+    const x = idx % width;
+    const y = (idx / width) | 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      const ny = y + dy;
+      if (ny < 0 || ny >= height) continue;
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = x + dx;
+        if (nx < 0 || nx >= width) continue;
+        const nIdx = ny * width + nx;
+        if (labels[nIdx] !== 0 || fg[nIdx] !== 1) continue;
+        labels[nIdx] = label;
+        queue[qTail++] = nIdx;
+      }
+    }
   }
 
   for (let i = 0; i < total; i++) {
@@ -251,6 +323,7 @@ function removeDisconnectedDebris(
 
   ctx.putImageData(imageData, 0, 0);
 }
+
 
 export async function postProcess(
   transparentPngUrl: string,
