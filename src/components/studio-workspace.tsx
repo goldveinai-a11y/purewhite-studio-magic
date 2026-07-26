@@ -335,14 +335,26 @@ function ResultPreview({ job }: { job: Job | undefined }) {
         </div>
       )}
       {showResult && job.compliance && (
-        <span
-          className={`absolute left-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-semibold text-white ${
-            job.compliance.passed ? "bg-emerald-600" : "bg-amber-500"
-          }`}
-          title={`${job.compliance.frameFill.detail} · ${job.compliance.backgroundPure.detail}`}
-        >
-          {job.compliance.passed ? "✓ Passes Amazon spec" : "⚠ Needs review"}
-        </span>
+        <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
+          <span
+            className={`rounded-md px-2 py-0.5 text-[10px] font-semibold text-white ${
+              job.compliance.backgroundPure.pass ? "bg-emerald-600" : "bg-amber-500"
+            }`}
+            title={job.compliance.backgroundPure.detail}
+          >
+            {job.compliance.backgroundPure.pass ? "✓ White BG" : "⚠ BG issue"}
+          </span>
+          <span
+            className={`rounded-md px-2 py-0.5 text-[10px] font-semibold text-white ${
+              job.compliance.frameFill.pass ? "bg-emerald-600" : "bg-amber-500"
+            }`}
+            title={job.compliance.frameFill.detail}
+          >
+            {job.compliance.frameFill.pass
+              ? `✓ ${job.compliance.frameFill.value}% fill`
+              : "⚠ Fill low"}
+          </span>
+        </div>
       )}
       <span className="absolute right-2 top-2 rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
         {showResult ? "AFTER · #FFFFFF" : "PROCESSING"}
