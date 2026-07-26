@@ -159,7 +159,7 @@ export function StudioWorkspace({
         let { blob, compliance } = await postProcess(matted.url, {
           amazonPreset: amazonRef.current,
           softShadow: shadowRef.current,
-          aggressiveDebris: true,
+          aggressiveDebris: false,
         });
 
         const resultUrl = URL.createObjectURL(blob);
