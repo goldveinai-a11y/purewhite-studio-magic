@@ -147,16 +147,15 @@ export function StudioWorkspace({
         });
         const preUpscale = Math.max(dims.w, dims.h) < 900;
 
-        // One matting call on Bria (best masks), then deterministic canvas
-        // post-processing. No AI judge in the path: it never changed the
-        // output on real photos, only added latency and cost.
+        // Birefnet (Light) is the fast first pass — ~2× faster than Bria
+        // with equivalent quality on clean product shots. Bria stays as
+        // the fallback for outages.
         updateJob(job.id, { status: "removing", progress: 30 });
         let matted: { url: string };
         try {
-          matted = await removeWithRetry(dataUrl, "bria", preUpscale);
-        } catch {
-          // Bria outage resilience: birefnet keeps the studio alive.
           matted = await removeWithRetry(dataUrl, "birefnet", preUpscale);
+        } catch {
+          matted = await removeWithRetry(dataUrl, "bria", preUpscale);
         }
         updateJob(job.id, { status: "compositing", progress: 60 });
         let { blob, compliance } = await postProcess(matted.url, {
