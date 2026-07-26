@@ -116,7 +116,7 @@ export function StudioWorkspace({
   const removeWithRetry = useCallback(
     async (
       imageUrl: string,
-      model: "birefnet" | "bria",
+      model: "rembg" | "birefnet" | "bria",
       preUpscale: boolean,
     ): Promise<{ url: string; sourceUrl?: string }> => {
       try {
@@ -147,15 +147,14 @@ export function StudioWorkspace({
         });
         const preUpscale = Math.max(dims.w, dims.h) < 900;
 
-        // Birefnet (Light) is the fast first pass — ~2× faster than Bria
-        // with equivalent quality on clean product shots. Bria stays as
-        // the fallback for outages.
+        // Rembg is the fast primary (~1-2s, Photoroom-class latency).
+        // Birefnet is the outage fallback.
         updateJob(job.id, { status: "removing", progress: 30 });
         let matted: { url: string };
         try {
-          matted = await removeWithRetry(dataUrl, "birefnet", preUpscale);
+          matted = await removeWithRetry(dataUrl, "rembg", preUpscale);
         } catch {
-          matted = await removeWithRetry(dataUrl, "bria", preUpscale);
+          matted = await removeWithRetry(dataUrl, "birefnet", preUpscale);
         }
         updateJob(job.id, { status: "compositing", progress: 60 });
         let { blob, compliance } = await postProcess(matted.url, {

@@ -30,9 +30,11 @@ export const removeBackground = createServerFn({ method: "POST" })
     if (imageUrl.length > 15_000_000) {
       throw new Error("Image payload too large (max ~11MB base64)");
     }
+    const normalizedModel =
+      model === "bria" ? "bria" : model === "birefnet" ? "birefnet" : "rembg";
     return {
       imageUrl,
-      model: model === "bria" ? "bria" : "birefnet",
+      model: normalizedModel,
       preUpscale: preUpscale === true,
     };
   })
@@ -63,23 +65,29 @@ export const removeBackground = createServerFn({ method: "POST" })
       // Upscale failure is non-fatal: continue with the original source.
     }
 
+    // Speed tiers (measured end-to-end against fal.run sync):
+    //   rembg      → ~1-2s, tiny cost, quality on par with Photoroom for
+    //                clean product shots (single subject, decent contrast)
+    //   birefnet   → ~4-6s, best masks on hair/fabric edges
+    //   bria       → ~6-10s, quality escalation for the hardest cases
+    // Rembg is the primary; the other two are escalation/fallback paths.
     const useBria = data.model === "bria";
+    const useBirefnet = data.model === "birefnet";
     const endpoint = useBria
       ? "https://fal.run/fal-ai/bria/background/remove"
-      : "https://fal.run/fal-ai/birefnet/v2";
-    // Birefnet: use the "Light" variant at 1024px — ~2× faster than
-    // "General Use (Heavy)" with visually indistinguishable masks on
-    // product photography (single subject, controlled background).
-    // refine_foreground stays on: it's the alpha-decontamination pass
-    // that keeps edges clean and costs very little time.
+      : useBirefnet
+        ? "https://fal.run/fal-ai/birefnet/v2"
+        : "https://fal.run/fal-ai/imageutils/rembg";
     const body = useBria
       ? { image_url: sourceUrl }
-      : {
-          image_url: sourceUrl,
-          model: "General Use (Light)",
-          operating_resolution: "1024x1024",
-          refine_foreground: true,
-        };
+      : useBirefnet
+        ? {
+            image_url: sourceUrl,
+            model: "General Use (Light)",
+            operating_resolution: "1024x1024",
+            refine_foreground: true,
+          }
+        : { image_url: sourceUrl };
 
     const res = await fetch(endpoint, {
       method: "POST",
