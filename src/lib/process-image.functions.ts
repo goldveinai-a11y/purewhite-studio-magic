@@ -30,9 +30,11 @@ export const removeBackground = createServerFn({ method: "POST" })
     if (imageUrl.length > 15_000_000) {
       throw new Error("Image payload too large (max ~11MB base64)");
     }
+    const normalizedModel =
+      model === "bria" ? "bria" : model === "birefnet" ? "birefnet" : "rembg";
     return {
       imageUrl,
-      model: model === "bria" ? "bria" : "birefnet",
+      model: normalizedModel,
       preUpscale: preUpscale === true,
     };
   })
