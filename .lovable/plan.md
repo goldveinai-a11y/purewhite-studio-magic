@@ -1,21 +1,75 @@
-## Problem
+# План: оптимизация пайплайна обработки без потери качества и конверсии
 
-In the Studio section, the left column stacks `StudioWorkspace` (uploader) **plus** the large `Sample Preview` sneaker slider, while the right column only holds the Control Panel toggles and the short "Why Sellers Choose" list. That makes the left column roughly twice as tall as the right, leaving the big empty white gap under the right column that you circled.
+## Моя рекомендация (коротко)
 
-The right column also has a small structural issue: the "Why Sellers" card lives inside the toggles block but is missing one level of indentation, so it butts awkwardly against the toggle group.
+**Полностью убрать автоматического AI QC-судью + добавить одну кнопку «Reprocess in HD» в превью каждого фото + чекбокс «Select all failed» для батча.**
 
-## Fix
+Почему именно так — это лучший баланс скорости, косты, UX и конверсии:
 
-Restructure only the studio card layout in `src/routes/index.tsx` (lines ~315–398). No new components, no design-token changes.
+- **Скорость:** -2–3 сек на каждое фото (сейчас 9–10с → станет 5–7с, ближе к Photoroom).
+- **Косты:** -$0.001–0.002 на фото + минус вызовы Anthropic. На 1000 фото/мес Pro-плана это ощутимая экономия маржи.
+- **UX:** пользователь не ждёт «проверку», результат появляется сразу. Это критично — Photoroom выигрывает именно ощущением моментальности.
+- **Conversion Rate НЕ падает:** наоборот, быстрее = выше CR. А качество на 90%+ фото у rembg и так ок.
+- **Оплата/использование НЕ страдают:** кредит списывается как и сейчас — 1 за фото. HD-эскалация — **бесплатная в рамках того же кредита** (не двойное списание), потому что это тот же продукт, просто «доделай лучше». Это ключевой момент — иначе пользователи будут злиться.
 
-1. **Left column** → keep only `<StudioWorkspace />` (uploader + dropzone + credits meter). Remove the Sample Preview from here.
-2. **Right column** → keep Control Panel heading + both `ToggleRow`s + the "Free tier / batches" hint + the "Why Sellers Choose" card. Fix the indentation so the Why-Sellers card is a proper sibling of the toggles, not a nested orphan.
-3. **Sample Preview** → move out of the grid and render as a **full-width block below** the two-column grid, still inside the same white card. Keep the same `BeforeAfter` component, label, and dashed border styling.
+## Что меняется в UI
 
-Result: left and right columns end at roughly the same height (both anchored by the Control Panel / uploader), and the sneaker Before/After slider becomes a wide showcase strip underneath — no more dead space next to the "Why Sellers" list.
+### 1. Single upload / превью одного фото
+Под результатом появляется небольшая кнопка-ссылка:
+```
+✨ Reprocess in HD  (для сложных фото со splashes / мехом / волосами)
+```
+Клик → тот же файл прогоняется через Birefnet Heavy → PNG подменяется в превью и в ZIP. Кредит **не** списывается повторно.
 
-## Technical notes
+### 2. Батч (5–100 фото)
+Каждая миниатюра остаётся как есть (без кнопки под каждой — не засоряем сетку). Сверху над сеткой появляется тулбар:
+```
+[ ☐ Select ]  [ Reprocess selected in HD ]  [ Download all .ZIP ]
+```
+Пользователь тыкает миниатюры, которые не устроили, жмёт «Reprocess selected in HD» — они перегоняются пачкой (макс 3 параллельно, чтобы не забить fal.ai квоту). Прогресс показывается по каждой.
 
-- Single edit to `src/routes/index.tsx` inside the `Hero` component's studio card.
-- Grid stays `md:grid-cols-[1.4fr_1fr]`; only its children change. Sample Preview moves to a sibling `<div>` after the grid, inside the same `<Card>`.
-- No changes to `StudioWorkspace`, `BeforeAfter`, tokens, or other sections.
+### 3. Никаких блокирующих модалок / автопроверок
+QC-судья удаляется полностью — ни в фоне, ни блокирующе. Меньше кода, меньше багов.
+
+## Что меняется в коде
+
+**`src/lib/process-image.functions.ts`**
+- Удалить весь блок вызова Anthropic (QC judge) и связанные типы/поля ответа.
+- Оставить два тира: `rembg` (default) и `birefnet-heavy` (по флагу `hd: true`).
+- Убрать автоэскалацию — эскалация теперь только по явному запросу с клиента.
+
+**`src/components/studio-workspace.tsx`**
+- Убрать логику ожидания/чтения QC-вердикта.
+- Добавить состояние `selectedForHd: Set<jobId>` и функцию `reprocessInHd(jobIds)`.
+- Добавить кнопку **Reprocess in HD** в превью одного фото (в `<Dialog>` большого превью).
+- Добавить тулбар над сеткой батча с чекбоксами выбора + кнопкой массовой эскалации.
+- HD-прогон **не декрементит `credits`** (важно для юнит-экономики и доверия).
+
+**`src/lib/canvas-processing.ts`** — без изменений.
+
+## Юнит-экономика после изменений
+
+| Сценарий | Себестоимость / фото | Время |
+|---|---|---|
+| Обычный прогон (rembg) | ~$0.001 | 5–7с |
+| HD-эскалация (birefnet heavy) | +~$0.003 | +6–8с |
+| Ожидаемая доля HD-запросов | ~5–10% фото | — |
+| **Средняя себестоимость** | **~$0.0013–0.0014** | — |
+
+При Pro-плане 1000 фото/мес и цене $19–29 маржа остаётся >90%.
+
+## Риски и как их закрываем
+
+- **«А вдруг юзер не поймёт, что можно улучшить?»** — добавляем короткий тултип «Not happy with edges? Try HD» при hover на результат. Ненавязчиво.
+- **«HD спамят и жгут косты?»** — soft-лимит: на free-тире HD доступен только для 1 фото (после — paywall на «HD unlimited»). На Pro — без лимита. Это ещё и **буст CR в Pro**.
+- **«QC ловил реальные факапы»** — на 90% фото он возвращал pass. На оставшихся 10% пользователь и так видит проблему глазами; HD-кнопка закрывает этот кейс за 1 клик.
+
+## Что делаем на этом шаге
+
+1. Удалить QC-судью из бэкенда и клиента.
+2. Добавить `hd: boolean` флаг в server function и роутинг на Birefnet Heavy.
+3. Добавить UI: кнопка HD в превью + тулбар выбора в батче.
+4. Free-тир: 1 HD-прогон бесплатно, дальше — paywall trigger (тот же существующий `PaywallDialog`).
+5. Кредиты за HD **не списываются**.
+
+Подтверди — и в билд-моде реализую.
