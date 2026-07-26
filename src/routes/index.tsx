@@ -916,7 +916,7 @@ function ValueProps() {
     {
       icon: <Package className="h-5 w-5" />,
       title: "First Results in Seconds",
-      desc: "Upload up to 50 photos at once — finished photos appear one by one within seconds, and a full 50-photo batch with AI quality inspection completes in about a minute. Download a single organized .ZIP, or just one photo if that's all you need today.",
+      desc: "Upload up to 50 photos at once — finished photos appear one by one as each slot completes. Download a single organized .ZIP, or just one photo if that's all you need today.",
     },
     {
       icon: <ShieldCheck className="h-5 w-5" />,
