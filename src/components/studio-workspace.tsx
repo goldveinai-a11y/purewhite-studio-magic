@@ -8,6 +8,7 @@ import {
   X,
   Check,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -110,19 +111,6 @@ export function StudioWorkspace({
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   }, []);
 
-  // One silent rembg retry before giving up — transient fal.ai hiccups shouldn't
-  // cost the user a job, but we never switch to slower fallback models.
-  const removeWithRetry = useCallback(
-    async (imageUrl: string, preUpscale: boolean): Promise<{ url: string; sourceUrl?: string }> => {
-      try {
-        return await removeBg({ data: { imageUrl, preUpscale } });
-      } catch {
-        return await removeBg({ data: { imageUrl, preUpscale } });
-      }
-    },
-    [removeBg],
-  );
-
   const runJob = useCallback(
     async (job: Job) => {
       try {
@@ -140,11 +128,13 @@ export function StudioWorkspace({
           probe.onerror = () => reject(new Error("Failed to read image dimensions"));
           probe.src = dataUrl;
         });
-        const preUpscale = Math.max(dims.w, dims.h) < 900;
+        // Amazon требует ≥1000px по длинной стороне. Порог 1200 = 20% запас:
+        // если исходник меньше — AI-апскейл до 2K перед rembg, иначе прямой путь.
+        const preUpscale = Math.max(dims.w, dims.h) < 1200;
 
-        // Rembg-only path: fastest and predictable, with no QC or slow fallback model.
+        // Rembg-only path: без silent retry и slow fallback — предсказуемое время.
         updateJob(job.id, { status: "removing", progress: 30 });
-        const matted = await removeWithRetry(dataUrl, preUpscale);
+        const matted = await removeBg({ data: { imageUrl: dataUrl, preUpscale } });
         updateJob(job.id, { status: "compositing", progress: 60 });
         let { blob, compliance } = await postProcess(matted.url, {
           amazonPreset: amazonRef.current,
@@ -168,7 +158,7 @@ export function StudioWorkspace({
         toast.error(`${job.name}: ${msg}`);
       }
     },
-    [removeWithRetry, updateJob, setCredits],
+    [removeBg, updateJob, setCredits],
   );
 
   const handleFiles = useCallback(
@@ -298,7 +288,7 @@ export function StudioWorkspace({
           Drop up to 50 photos — JPEG, PNG, WEBP
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Batch supported (8 concurrent). Max 20MB per file. {credits} credit
+          Up to 50 photos at once. Max 20MB per file. {credits} credit
           {credits === 1 ? "" : "s"} remaining.
         </p>
         <div className="mt-5 flex flex-col items-center gap-2">
