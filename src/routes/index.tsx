@@ -1014,7 +1014,6 @@ function HowItWorks() {
                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Step {s.n}</span>
               </div>
               <h3 className="mt-3 font-display text-lg font-bold">{s.title}</h3>
-              </div>
               <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                 {s.desc}
               </p>
