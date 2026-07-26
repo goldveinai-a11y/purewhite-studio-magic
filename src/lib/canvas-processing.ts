@@ -484,6 +484,48 @@ function boxErode(mask: Uint8Array, w: number, h: number, r: number): Uint8Array
   return out;
 }
 
+/**
+ * Fixes semi-transparent "ghost" patches INSIDE the subject: on complex
+ * textures (suede, glossy highlights, laces) the matting model can return
+ * mid-range alpha (80-220) for pixels that are clearly deep inside the
+ * object. Composited onto pure white, those pixels look washed-out — the
+ * background "shows through" the product. decontaminateEdgeColors fixes RGB
+ * tint but not alpha, so the wash-through survives it.
+ *
+ * Fix: erode the alpha>0 mask to find the guaranteed-interior core, then
+ * force alpha=255 for every core pixel. Edge pixels (outside the core) keep
+ * their original alpha, so antialiasing and edge softness are untouched —
+ * only interior translucency is removed.
+ */
+function solidifyInteriorAlpha(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): void {
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  const total = width * height;
+
+  const fg = new Uint8Array(total);
+  for (let i = 0; i < total; i++) {
+    fg[i] = data[i * 4 + 3] > 0 ? 1 : 0;
+  }
+
+  // Same interior-core radius as decontaminateEdgeColors so both passes
+  // agree on what counts as "safely inside the subject".
+  const ERODE_RADIUS = Math.min(10, Math.max(3, Math.round(Math.min(width, height) / 150)));
+  const core = boxErode(fg, width, height, ERODE_RADIUS);
+
+  let changed = false;
+  for (let i = 0; i < total; i++) {
+    if (core[i] && data[i * 4 + 3] < 255) {
+      data[i * 4 + 3] = 255;
+      changed = true;
+    }
+  }
+  if (changed) ctx.putImageData(imageData, 0, 0);
+}
+
 // Fixes color-fringing / "white spots" / faint dark specks: the AI matting
 // model's semi-transparent rim pixels can retain the hue of whatever
 // background was behind the subject, even at alpha very close to fully
@@ -651,6 +693,7 @@ export async function postProcess(
   sctx.drawImage(img, 0, 0);
   fillInteriorHoles(sctx, src.width, src.height);
   removeDisconnectedDebris(sctx, src.width, src.height);
+  solidifyInteriorAlpha(sctx, src.width, src.height);
   decontaminateEdgeColors(sctx, src.width, src.height);
   const bounds = findBounds(sctx.getImageData(0, 0, src.width, src.height));
 

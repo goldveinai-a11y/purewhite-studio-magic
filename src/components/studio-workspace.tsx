@@ -48,7 +48,12 @@ export function StudioWorkspace({
   onPaywall: () => void;
 }) {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [activeIdx, setActiveIdx] = useState(0);
+  // Track the selected job by STABLE id, never by array index: new batches
+  // are prepended to `jobs` and rows can be removed, both of which shift
+  // indices. Index-based selection made the preview (and its compliance
+  // badges) show a DIFFERENT photo's result than the one the user clicked —
+  // the "result doesn't match the source photo" bug.
+  const [activeId, setActiveId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const removeBg = useServerFn(removeBackground);
 
@@ -162,7 +167,7 @@ export function StudioWorkspace({
         progress: 5,
       }));
       setJobs((prev) => [...newJobs, ...prev]);
-      setActiveIdx(0);
+      setActiveId(newJobs[0]?.id ?? null);
 
       // Concurrency-limited processing (max 5 in flight)
       let cursor = 0;
@@ -182,7 +187,7 @@ export function StudioWorkspace({
   );
 
   const doneJobs = jobs.filter((j) => j.status === "done" && j.resultBlob);
-  const active = jobs[activeIdx] ?? jobs[0];
+  const active = jobs.find((j) => j.id === activeId) ?? jobs[0];
 
   const downloadOne = () => {
     const target = active?.status === "done" ? active : doneJobs[0];
@@ -268,12 +273,12 @@ export function StudioWorkspace({
               Batch Queue ({jobs.length})
             </p>
             <div className="max-h-80 space-y-2 overflow-auto pr-1">
-              {jobs.map((j, idx) => (
+              {jobs.map((j) => (
                 <QueueRow
                   key={j.id}
                   job={j}
-                  active={idx === activeIdx}
-                  onSelect={() => setActiveIdx(idx)}
+                  active={j.id === (active?.id ?? null)}
+                  onSelect={() => setActiveId(j.id)}
                   onRemove={() => remove(j.id)}
                 />
               ))}

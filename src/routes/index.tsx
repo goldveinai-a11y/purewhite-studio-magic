@@ -1076,7 +1076,9 @@ function Pricing({ onUpgrade }: { onUpgrade: () => void }) {
       cadence: "",
       features: [
         "3 Free High-Res Photo Downloads",
-        "Basic #FFFFFF Background Isolation",
+        "Pure #FFFFFF Background Isolation",
+        "AI TrueGround Shadow Included",
+        "Auto 1000×1000px Amazon Preset",
         "Single File Download",
       ],
       cta: "Start Free (3 Credits)",
@@ -1090,8 +1092,7 @@ function Pricing({ onUpgrade }: { onUpgrade: () => void }) {
       features: [
         "Unlimited Background Removals",
         "50-Photo Batch Upload & ZIP Export",
-        "Auto 1000×1000px Amazon Preset",
-        "AI TrueGround Shadow Generator",
+        "Everything in Free (Shadow, Amazon Preset)",
         "Priority Processing Speed",
         "Commercial License",
       ],
