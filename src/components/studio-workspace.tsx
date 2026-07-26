@@ -248,7 +248,7 @@ export function StudioWorkspace({
           <Button
             size="lg"
             onClick={() => inputRef.current?.click()}
-            className="rounded-full bg-primary px-6 font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
+            className="w-full whitespace-normal rounded-full bg-primary px-6 font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
           >
             <Upload className="mr-2 h-4 w-4" />
             Upload Product Photos (Batch Supported)
