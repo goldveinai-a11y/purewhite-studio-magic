@@ -8,7 +8,6 @@ import {
   X,
   Check,
   AlertCircle,
-  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -55,7 +54,7 @@ async function downscaleForUpload(file: File): Promise<string> {
   return fileToDataUrl(new File([blob], file.name, { type: "image/jpeg" }));
 }
 
-type JobStatus = "queued" | "uploading" | "removing" | "compositing" | "hd" | "done" | "error";
+type JobStatus = "queued" | "uploading" | "removing" | "compositing" | "done" | "error";
 
 type Job = {
   id: string;
@@ -66,17 +65,12 @@ type Job = {
   resultUrl?: string;
   resultBlob?: Blob;
   compliance?: ComplianceResult;
-  hd?: boolean;
   error?: string;
 };
 
 const MAX_CONCURRENT = 12;
 const FREE_BATCH_LIMIT = 3;
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB — matches the promise in the UI
-// Free tier: one HD reprocess on the house, then the paywall kicks in.
-// HD prompts do NOT cost a regular credit — they're an in-product upsell,
-// not a second billable event on the same photo.
-const FREE_HD_LIMIT = 1;
 
 export function StudioWorkspace({
   amazonPreset,
