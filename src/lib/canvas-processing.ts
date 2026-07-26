@@ -24,10 +24,13 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Render the isolated subject with a light edge feather (1-2px) into a
- * temporary transparent canvas of the target size. Feathering softens
- * jagged mask edges from the background remover before we composite the
- * subject onto the pure white canvas.
+ * Render the isolated subject into a temporary transparent canvas, softening
+ * ONLY the alpha edge. The previous implementation set ctx.filter=blur() on
+ * the main draw call, which blurred the ENTIRE subject (texture, logos,
+ * laces) — the primary cause of soft, "upscaled-looking" output. Now the
+ * subject is drawn sharp, then its alpha is multiplied by a blurred copy of
+ * itself (destination-in), which feathers the mask edge 1-2px inward while
+ * leaving every interior RGB pixel untouched.
  */
 function renderFeatheredSubject(
   img: CanvasImageSource,
@@ -43,12 +46,58 @@ function renderFeatheredSubject(
   layer.height = size;
   const lctx = layer.getContext("2d");
   if (!lctx) throw new Error("Canvas 2D unavailable");
-  // Slight blur on the alpha edges - CanvasRenderingContext2D.filter is
-  // widely supported in modern browsers and only affects this draw call.
-  lctx.filter = `blur(${FEATHER_PX}px)`;
+  lctx.imageSmoothingEnabled = true;
+  lctx.imageSmoothingQuality = "high";
   lctx.drawImage(img, bounds.x, bounds.y, bounds.w, bounds.h, dx, dy, drawW, drawH);
-  lctx.filter = "none";
+
+  const mask = document.createElement("canvas");
+  mask.width = size;
+  mask.height = size;
+  const mctx = mask.getContext("2d");
+  if (mctx) {
+    mctx.filter = `blur(${FEATHER_PX}px)`;
+    mctx.drawImage(layer, 0, 0);
+    mctx.filter = "none";
+    lctx.globalCompositeOperation = "destination-in";
+    lctx.drawImage(mask, 0, 0);
+    lctx.globalCompositeOperation = "source-over";
+  }
   return layer;
+}
+
+/**
+ * Mild unsharp mask on RGB (alpha untouched) to recover perceived detail
+ * after upscaling small sources to the 1000px Amazon canvas. Strength
+ * scales with the upscale factor; no-op for downscales.
+ */
+function sharpenLayer(layer: HTMLCanvasElement, scale: number): void {
+  if (scale <= 1.15) return;
+  const k = Math.min(0.4, (scale - 1) * 0.35);
+  const ctx = layer.getContext("2d");
+  if (!ctx) return;
+  const { width, height } = layer;
+  const srcData = ctx.getImageData(0, 0, width, height);
+  const src = srcData.data;
+  const out = new Uint8ClampedArray(src);
+  const center = 1 + 4 * k;
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const i = (y * width + x) * 4;
+      if (src[i + 3] === 0) continue;
+      for (let c = 0; c < 3; c++) {
+        const v =
+          src[i + c] * center -
+          k *
+            (src[i - 4 + c] +
+              src[i + 4 + c] +
+              src[i - width * 4 + c] +
+              src[i + width * 4 + c]);
+        out[i + c] = v;
+      }
+    }
+  }
+  srcData.data.set(out);
+  ctx.putImageData(srcData, 0, 0);
 }
 
 /** Find opaque bounding box in an ImageData. */
@@ -235,6 +284,52 @@ function fillInteriorHoles(
     }
   }
   if (holeCount === 0) return;
+
+  // Only fill SMALL holes (mask defects on textures). Large enclosed
+  // background regions are legitimate see-through gaps — e.g. the opening
+  // between an arm and a held product, a bag handle, a shoe pair leaning on
+  // each other. Filling those painted big smeared color blocks over the
+  // image. Per-component labeling with an area cap: anything larger than 2%
+  // of the foreground stays transparent.
+  let fgArea = 0;
+  for (let i = 0; i < total; i++) if (!bg[i]) fgArea++;
+  const MAX_HOLE_AREA = Math.max(96, Math.round(fgArea * 0.02));
+  const holeLabels = new Int32Array(total);
+  let holeNext = 1;
+  const hq = new Int32Array(total);
+  for (let start = 0; start < total; start++) {
+    if (!isHole[start] || holeLabels[start] !== 0) continue;
+    let h0 = 0;
+    let h1 = 0;
+    hq[h1++] = start;
+    holeLabels[start] = holeNext;
+    const members: number[] = [];
+    while (h0 < h1) {
+      const idx = hq[h0++];
+      members.push(idx);
+      const x = idx % width;
+      const y = (idx / width) | 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= height) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = x + dx;
+          if (nx < 0 || nx >= width) continue;
+          const nIdx = ny * width + nx;
+          if (holeLabels[nIdx] !== 0 || !isHole[nIdx]) continue;
+          holeLabels[nIdx] = holeNext;
+          hq[h1++] = nIdx;
+        }
+      }
+    }
+    if (members.length > MAX_HOLE_AREA) {
+      for (const m of members) isHole[m] = 0;
+      holeCount -= members.length;
+    }
+    holeNext++;
+  }
+  if (holeCount <= 0) return;
 
   const claimed = new Uint8Array(total);
   const rOut = new Uint8Array(total);
@@ -723,6 +818,8 @@ export async function postProcess(
   // Render the subject first (off-canvas) so we can measure its actual
   // footprint at the ground line before drawing any shadow beneath it.
   const subjectLayer = renderFeatheredSubject(src, bounds, drawW, drawH, dx, dy, size);
+  // Recover detail lost to upscaling small sources (thumbnails, phone crops).
+  sharpenLayer(subjectLayer, scale);
 
   // Soft drop shadow UNDER the object - drawn before the subject is
   // composited onto the output so it sits behind it. Nudge up by 1px so
