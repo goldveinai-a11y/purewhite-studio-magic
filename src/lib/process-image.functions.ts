@@ -72,7 +72,7 @@ export const removeBackground = createServerFn({ method: "POST" })
       : {
           image_url: sourceUrl,
           model: "General Use (Heavy)",
-          operating_resolution: "2048x2048",
+          operating_resolution: "1024x1024",
           refine_foreground: true,
         };
 

@@ -31,7 +31,7 @@ type Job = {
   error?: string;
 };
 
-const MAX_CONCURRENT = 8;
+const MAX_CONCURRENT = 12;
 const FREE_BATCH_LIMIT = 3;
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB — matches the promise in the UI
 
@@ -154,47 +154,61 @@ export function StudioWorkspace({
           aggressiveDebris: false,
         });
 
-        let qc: { pass: boolean; escalated: boolean; reason?: string } | undefined;
-        if (qcAvailableRef.current !== false) {
-          updateJob(job.id, { status: "checking", progress: 80 });
-          const [origThumb, resThumb] = await Promise.all([
-            origThumbPromise,
-            toJudgeThumb(blob),
-          ]);
-          if (origThumb) {
-            const verdict = await judgeWithTimeout(origThumb, resThumb);
-            if (!verdict.available) {
-              qcAvailableRef.current = false;
-            } else if (verdict.pass) {
-              qcAvailableRef.current = true;
-              qc = { pass: true, escalated: false };
-            } else if (verdict.issues.includes("debris")) {
-              qcAvailableRef.current = true;
-              // Client-side aggressive redo on the same matting result.
-              updateJob(job.id, { status: "compositing", progress: 90 });
-              ({ blob, compliance } = await postProcess(matted.url, {
-                amazonPreset: amazonRef.current,
-                softShadow: shadowRef.current,
-                aggressiveDebris: true,
-              }));
-              qc = { pass: true, escalated: true, reason: verdict.reason };
-            } else {
-              qcAvailableRef.current = true;
-              // blur/cut_object on the strongest model: surface honestly.
-              qc = { pass: false, escalated: false, reason: verdict.reason };
-            }
-          }
-        }
-
-        const resultUrl = URL.createObjectURL(blob);
+        // SHOW THE RESULT NOW. QC runs in the background and only updates
+        // the badge (or silently re-does debris cleanup) afterwards — the
+        // user never waits on Claude. This is the single biggest wall-time
+        // win: perceived time = matting + composite only (~6-9s), judge
+        // latency is off the critical path.
+        const resultUrl0 = URL.createObjectURL(blob);
         updateJob(job.id, {
           status: "done",
           progress: 100,
           resultBlob: blob,
-          resultUrl,
+          resultUrl: resultUrl0,
           compliance,
-          qc,
         });
+
+        if (qcAvailableRef.current !== false) {
+          void (async () => {
+            try {
+              const [origThumb, resThumb] = await Promise.all([
+                origThumbPromise,
+                toJudgeThumb(blob),
+              ]);
+              if (!origThumb) return;
+              const verdict = await judgeWithTimeout(origThumb, resThumb);
+              if (!verdict.available) {
+                qcAvailableRef.current = false;
+                return;
+              }
+              qcAvailableRef.current = true;
+              if (verdict.pass) {
+                updateJob(job.id, { qc: { pass: true, escalated: false } });
+              } else if (verdict.issues.includes("debris")) {
+                const redo = await postProcess(matted.url, {
+                  amazonPreset: amazonRef.current,
+                  softShadow: shadowRef.current,
+                  aggressiveDebris: true,
+                });
+                updateJob(job.id, {
+                  resultBlob: redo.blob,
+                  resultUrl: URL.createObjectURL(redo.blob),
+                  compliance: redo.compliance,
+                  qc: { pass: true, escalated: true, reason: verdict.reason },
+                });
+              } else {
+                // blur / cut_object / dirty bg on the strongest model:
+                // surface honestly so the user can re-shoot.
+                updateJob(job.id, {
+                  qc: { pass: false, escalated: false, reason: verdict.reason },
+                });
+              }
+            } catch {
+              /* background QC failure never affects the delivered photo */
+            }
+          })();
+        }
+
         // Credit already reserved up-front in handleFiles — nothing to do here.
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Processing failed";
@@ -334,7 +348,7 @@ export function StudioWorkspace({
           Drop up to 50 photos — JPEG, PNG, WEBP
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Batch supported (8 concurrent). Max 20MB per file. {credits} credit
+          Batch supported (12 concurrent). Max 20MB per file. {credits} credit
           {credits === 1 ? "" : "s"} remaining.
         </p>
         <div className="mt-5 flex flex-col items-center gap-2">
