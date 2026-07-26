@@ -865,7 +865,7 @@ export async function postProcess(
   // Snap thin filaments between product and splashes/dust/mist, then drop
   // any leftover disconnected specks. Erosion is capped so thin real
   // structures (laces, straps, hanger hooks) reattach on regrowth.
-  removeDisconnectedDebris(sctx, src.width, src.height, false);
+  removeDisconnectedDebris(sctx, src.width, src.height, opts.aggressiveDebris === true);
   const bounds = findBounds(sctx.getImageData(0, 0, src.width, src.height));
 
   const size = opts.amazonPreset
