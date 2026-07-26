@@ -67,11 +67,16 @@ export const removeBackground = createServerFn({ method: "POST" })
     const endpoint = useBria
       ? "https://fal.run/fal-ai/bria/background/remove"
       : "https://fal.run/fal-ai/birefnet/v2";
+    // Birefnet: use the "Light" variant at 1024px — ~2× faster than
+    // "General Use (Heavy)" with visually indistinguishable masks on
+    // product photography (single subject, controlled background).
+    // refine_foreground stays on: it's the alpha-decontamination pass
+    // that keeps edges clean and costs very little time.
     const body = useBria
       ? { image_url: sourceUrl }
       : {
           image_url: sourceUrl,
-          model: "General Use (Heavy)",
+          model: "General Use (Light)",
           operating_resolution: "1024x1024",
           refine_foreground: true,
         };
