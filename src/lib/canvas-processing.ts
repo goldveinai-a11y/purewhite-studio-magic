@@ -30,7 +30,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
  * subject onto the pure white canvas.
  */
 function renderFeatheredSubject(
-  img: HTMLImageElement,
+  img: CanvasImageSource,
   bounds: { x: number; y: number; w: number; h: number },
   drawW: number,
   drawH: number,
@@ -293,7 +293,7 @@ export async function postProcess(
 
   // Render the subject first (off-canvas) so we can measure its actual
   // footprint at the ground line before drawing any shadow beneath it.
-  const subjectLayer = renderFeatheredSubject(img, bounds, drawW, drawH, dx, dy, size);
+  const subjectLayer = renderFeatheredSubject(src, bounds, drawW, drawH, dx, dy, size);
 
   // Soft drop shadow UNDER the object - drawn before the subject is
   // composited onto the output so it sits behind it. Nudge up by 1px so
