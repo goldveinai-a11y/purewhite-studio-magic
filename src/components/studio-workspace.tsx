@@ -131,62 +131,58 @@ export function StudioWorkspace({
         });
         const preUpscale = Math.max(dims.w, dims.h) < 900;
 
-        // Cache of the AI-upscaled source: filled by the first pass, reused
-        // by the escalation pass so Recraft runs at most once per photo.
-        let upscaledSource: string | null = null;
-        const runPass = async (
-          model: "birefnet" | "bria",
-          aggressiveDebris: boolean,
-        ) => {
-          const src = upscaledSource ?? dataUrl;
-          const res = await removeWithRetry(src, model, preUpscale && !upscaledSource);
-          if (res.sourceUrl && res.sourceUrl !== src) upscaledSource = res.sourceUrl;
-          return postProcess(res.url, {
-            amazonPreset: amazonRef.current,
-            softShadow: shadowRef.current,
-            aggressiveDebris,
-          });
-        };
+        // Speed-first architecture: ONE matting call on the strongest model
+        // (Bria), then the AI judge. A debris verdict is fixed by re-running
+        // the client-side cleanup in aggressive mode on the SAME matting
+        // result — zero extra API calls, ~1s. The old sequential cascade
+        // (cheap model -> judge -> strong model -> judge) saved cost but
+        // doubled wall time; speed wins.
+        updateJob(job.id, { status: "removing", progress: 30 });
+        // Judge thumbnail of the original: computed in parallel with matting.
+        const origThumbPromise = toJudgeThumb(dataUrl).catch(() => null);
+        let matted: { url: string };
+        try {
+          matted = await removeWithRetry(dataUrl, "bria", preUpscale);
+        } catch {
+          // Bria outage resilience: birefnet keeps the studio alive.
+          matted = await removeWithRetry(dataUrl, "birefnet", preUpscale);
+        }
+        updateJob(job.id, { status: "compositing", progress: 60 });
+        let { blob, compliance } = await postProcess(matted.url, {
+          amazonPreset: amazonRef.current,
+          softShadow: shadowRef.current,
+          aggressiveDebris: false,
+        });
 
-        let blob: Blob;
-        let compliance: ComplianceResult;
         let qc: { pass: boolean; escalated: boolean; reason?: string } | undefined;
-
-        if (qcAvailableRef.current === false) {
-          // No AI judge configured: single strong-model pass (legacy path).
-          updateJob(job.id, { status: "removing", progress: 40 });
-          ({ blob, compliance } = await runPass("bria", false));
-        } else {
-          // Cost cascade: cheap model first, AI judge decides escalation.
-          updateJob(job.id, { status: "removing", progress: 30 });
-          ({ blob, compliance } = await runPass("birefnet", false));
-          updateJob(job.id, { status: "checking", progress: 65 });
+        if (qcAvailableRef.current !== false) {
+          updateJob(job.id, { status: "checking", progress: 80 });
           const [origThumb, resThumb] = await Promise.all([
-            toJudgeThumb(dataUrl),
+            origThumbPromise,
             toJudgeThumb(blob),
           ]);
-          const verdict = await judgeWithTimeout(origThumb, resThumb);
-          if (!verdict.available) {
-            qcAvailableRef.current = false;
-            // Judge offline -> escalate unconditionally to the strong model.
-            updateJob(job.id, { status: "removing", progress: 75 });
-            ({ blob, compliance } = await runPass("bria", false));
-          } else if (verdict.pass) {
-            qcAvailableRef.current = true;
-            qc = { pass: true, escalated: false };
-          } else {
-            qcAvailableRef.current = true;
-            updateJob(job.id, { status: "removing", progress: 75 });
-            const aggressive = verdict.issues.includes("debris");
-            ({ blob, compliance } = await runPass("bria", aggressive));
-            updateJob(job.id, { status: "checking", progress: 88 });
-            const [o2, r2] = await Promise.all([toJudgeThumb(dataUrl), toJudgeThumb(blob)]);
-            const v2 = await judgeWithTimeout(o2, r2);
-            qc = {
-              pass: v2.available ? v2.pass : true,
-              escalated: true,
-              reason: v2.reason || verdict.reason,
-            };
+          if (origThumb) {
+            const verdict = await judgeWithTimeout(origThumb, resThumb);
+            if (!verdict.available) {
+              qcAvailableRef.current = false;
+            } else if (verdict.pass) {
+              qcAvailableRef.current = true;
+              qc = { pass: true, escalated: false };
+            } else if (verdict.issues.includes("debris")) {
+              qcAvailableRef.current = true;
+              // Client-side aggressive redo on the same matting result.
+              updateJob(job.id, { status: "compositing", progress: 90 });
+              ({ blob, compliance } = await postProcess(matted.url, {
+                amazonPreset: amazonRef.current,
+                softShadow: shadowRef.current,
+                aggressiveDebris: true,
+              }));
+              qc = { pass: true, escalated: true, reason: verdict.reason };
+            } else {
+              qcAvailableRef.current = true;
+              // blur/cut_object on the strongest model: surface honestly.
+              qc = { pass: false, escalated: false, reason: verdict.reason };
+            }
           }
         }
 
