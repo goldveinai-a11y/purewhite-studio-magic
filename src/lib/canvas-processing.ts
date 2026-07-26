@@ -139,8 +139,9 @@ function findFootprintSegments(
 ): Array<{ cx: number; width: number }> {
   const ctx = layer.getContext("2d");
   if (!ctx) return [];
-  const bandTop = Math.max(0, Math.round(bottomY - 7));
-  const bandHeight = Math.min(9, size - bandTop);
+  const bandHeightTarget = Math.max(9, Math.round(size * 0.03));
+  const bandTop = Math.max(0, Math.round(bottomY - (bandHeightTarget - 2)));
+  const bandHeight = Math.min(bandHeightTarget, size - bandTop);
   if (bandHeight <= 0) return [];
   const band = ctx.getImageData(0, bandTop, size, bandHeight).data;
   const ALPHA_THRESHOLD = 25;
@@ -492,7 +493,12 @@ function removeDisconnectedDebris(
     if (areas[i] > maxArea) maxArea = areas[i];
   }
 
-  const keepThreshold = maxArea * 0.35;
+  // Keep threshold 8% of the largest core: kills dust/specks/splash debris
+  // but PRESERVES legitimate secondary objects — a shoebox behind the shoe,
+  // the second shoe of a pair, a held accessory. The old 35% threshold was
+  // tuned for birefnet's noisy masks and deleted real content that
+  // Photoroom-class output keeps.
+  const keepThreshold = maxArea * 0.08;
   const keep = new Uint8Array(nextLabel);
   for (let i = 1; i < nextLabel; i++) {
     keep[i] = areas[i] >= keepThreshold ? 1 : 0;
@@ -690,11 +696,21 @@ function decontaminateEdgeColors(
     }
   }
 
+  // Only recolor rim pixels that STRONGLY deviate from their interior
+  // reference color (background bleed: green grass fringe on a white sole,
+  // wood-table orange on suede). Mild differences are legitimate shading,
+  // reflections, and material gradients — flattening them made results look
+  // sterile and fake. Threshold: sum of |ΔR|+|ΔG|+|ΔB| > 110.
   for (let i = 0; i < total; i++) {
     if (fg[i] && !core[i]) {
-      data[i * 4] = rOut[i];
-      data[i * 4 + 1] = gOut[i];
-      data[i * 4 + 2] = bOut[i];
+      const dr = Math.abs(data[i * 4] - rOut[i]);
+      const dg = Math.abs(data[i * 4 + 1] - gOut[i]);
+      const db = Math.abs(data[i * 4 + 2] - bOut[i]);
+      if (dr + dg + db > 110) {
+        data[i * 4] = rOut[i];
+        data[i * 4 + 1] = gOut[i];
+        data[i * 4 + 2] = bOut[i];
+      }
     }
   }
 
