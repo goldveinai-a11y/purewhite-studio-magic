@@ -170,6 +170,88 @@ function drawShadowForSegment(
   }
 }
 
+/**
+ * Remove small disconnected foreground blobs (paint splashes, dust, stray
+ * background props the AI matting model treats as "salient") so only the
+ * actual product remains in the export. Runs an 8-connected flood fill over
+ * the alpha channel, keeps components at least 40% the size of the largest
+ * one found (this keeps genuine multi-item shots, e.g. a shoe pair with a
+ * gap between them) and clears the alpha of everything smaller so it
+ * renders as pure white background instead of floating debris.
+ */
+function removeDisconnectedDebris(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): void {
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  const total = width * height;
+  const ALPHA_THRESHOLD = 20;
+  const labels = new Int32Array(total);
+  const areas: number[] = [0];
+  let nextLabel = 1;
+  const queue = new Int32Array(total);
+
+  for (let start = 0; start < total; start++) {
+    if (labels[start] !== 0) continue;
+    if (data[start * 4 + 3] <= ALPHA_THRESHOLD) continue;
+
+    let qHead = 0;
+    let qTail = 0;
+    queue[qTail++] = start;
+    labels[start] = nextLabel;
+    let area = 0;
+
+    while (qHead < qTail) {
+      const idx = queue[qHead++];
+      area++;
+      const x = idx % width;
+      const y = (idx / width) | 0;
+
+      for (let dy = -1; dy <= 1; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= height) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = x + dx;
+          if (nx < 0 || nx >= width) continue;
+          const nIdx = ny * width + nx;
+          if (labels[nIdx] !== 0) continue;
+          if (data[nIdx * 4 + 3] <= ALPHA_THRESHOLD) continue;
+          labels[nIdx] = nextLabel;
+          queue[qTail++] = nIdx;
+        }
+      }
+    }
+
+    areas[nextLabel] = area;
+    nextLabel++;
+  }
+
+  if (nextLabel <= 2) return;
+
+  let maxArea = 0;
+  for (let i = 1; i < nextLabel; i++) {
+    if (areas[i] > maxArea) maxArea = areas[i];
+  }
+
+  const keepThreshold = maxArea * 0.4;
+  const keep = new Uint8Array(nextLabel);
+  for (let i = 1; i < nextLabel; i++) {
+    keep[i] = areas[i] >= keepThreshold ? 1 : 0;
+  }
+
+  for (let i = 0; i < total; i++) {
+    const label = labels[i];
+    if (label !== 0 && !keep[label]) {
+      data[i * 4 + 3] = 0;
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
 export async function postProcess(
   transparentPngUrl: string,
   opts: PostProcessOptions,
@@ -183,6 +265,7 @@ export async function postProcess(
   const sctx = src.getContext("2d");
   if (!sctx) throw new Error("Canvas 2D unavailable");
   sctx.drawImage(img, 0, 0);
+  removeDisconnectedDebris(sctx, src.width, src.height);
   const bounds = findBounds(sctx.getImageData(0, 0, src.width, src.height));
 
   const size = opts.amazonPreset
