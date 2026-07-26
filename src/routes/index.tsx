@@ -50,7 +50,6 @@ import agenciesPerfumeAfter from "@/assets/agencies-perfume-after.jpg.asset.json
 import photographersWatchBefore from "@/assets/photographers-watch-before.jpg.asset.json";
 import photographersWatchAfter from "@/assets/photographers-watch-after.jpg.asset.json";
 
-
 export const Route = createFileRoute("/")({
   component: LandingPage,
   head: () => ({
@@ -307,8 +306,10 @@ function Hero({
             </span>
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-            Upload product photos in bulk. Remove backgrounds, apply pure #FFFFFF canvas,
-            format to 1000×1000px, and add realistic shadows in 5 seconds.
+            Upload one photo or fifty. Every image runs through our AutoCompliance
+            Check — exact #FFFFFF and 85%+ frame fill, the two things Amazon's
+            algorithm actually checks — so you catch a suppression risk before
+            it costs you a sale, not after.
           </p>
         </div>
 
@@ -321,105 +322,105 @@ function Hero({
               <div className="grid gap-6 md:grid-cols-[1.4fr_1fr]">
                 <div className="flex min-w-0 flex-col gap-4">
                   <StudioWorkspace
-                  amazonPreset={amazonPreset}
-                  softShadow={softShadow}
-                  credits={credits}
-                  setCredits={setCredits}
-                  onPaywall={onPaywall}
-                />
+                    amazonPreset={amazonPreset}
+                    softShadow={softShadow}
+                    credits={credits}
+                    setCredits={setCredits}
+                    onPaywall={onPaywall}
+                  />
                 </div>
                 <div className="flex min-w-0 flex-col gap-4">
                   <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Control Panel
-                  </p>
-                  <h3 className="mt-1 font-display text-lg font-bold">Studio Settings</h3>
-                </div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Control Panel
+                    </p>
+                    <h3 className="mt-1 font-display text-lg font-bold">Studio Settings</h3>
+                  </div>
 
-                <ToggleRow
-                  icon={<Layers className="h-4 w-4" />}
-                  title="Amazon 1000×1000px Preset"
-                  desc="Auto-crops and centers your product"
-                  checked={amazonPreset}
-                  onCheckedChange={setAmazonPreset}
-                />
-                <ToggleRow
-                  icon={<Wand2 className="h-4 w-4" />}
-                  title="AI Real Soft Shadow"
-                  desc="Grounded contact shadow, not a flat cutout"
-                  checked={softShadow}
-                  onCheckedChange={setSoftShadow}
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Free tier: {credits}/3 credits · Batches over 3 photos require Pro
-                </p>
+                  <ToggleRow
+                    icon={<Layers className="h-4 w-4" />}
+                    title="Amazon 1000×1000px Preset"
+                    desc="Auto-crops and centers your product"
+                    checked={amazonPreset}
+                    onCheckedChange={setAmazonPreset}
+                  />
+                  <ToggleRow
+                    icon={<Wand2 className="h-4 w-4" />}
+                    title="AI TrueGround Shadow"
+                    desc="Grounded contact shadow, not a flat cutout"
+                    checked={softShadow}
+                    onCheckedChange={setSoftShadow}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Free tier: {credits}/3 credits · Batches over 3 photos require Pro
+                  </p>
                 </div>
               </div>
               <div className="grid gap-6 md:grid-cols-[1.4fr_1fr]">
                 <div className="flex min-w-0 flex-col gap-4">
                   <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
-                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Sample Preview
-                  </p>
-                  <BeforeAfter
-                    pos={sliderPos}
-                    setPos={setSliderPos}
-                    beforeImage={heroSneakerBefore.url}
-                    afterImage={heroSneakerAfter.url}
-                  />
-                </div>
-              
+                    <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Sample Preview
+                    </p>
+                    <BeforeAfter
+                      pos={sliderPos}
+                      setPos={setSliderPos}
+                      beforeImage={heroSneakerBefore.url}
+                      afterImage={heroSneakerAfter.url}
+                    />
+                  </div>
+
                 </div>
                 <div className="flex min-w-0 flex-col gap-4">
                   <div className="mt-2 space-y-2 rounded-xl border border-border/60 bg-muted/30 p-4">
-                  <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    Every Export Includes
-                  </p>
-                  <ul className="space-y-2 text-sm text-foreground">
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                      <span>No signup, no credit card &mdash; 3 photos free</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                      <span>Exact RGB 255,255,255 &mdash; the value Amazon actually checks</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                      <span>85% frame fill &mdash; the rule most rejected listings fail</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                      <span>50 photos in, one ZIP out</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                      <span>Runs in your browser &mdash; nothing to install</span>
-                    </li>
-                  </ul>
-                </div>
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Every Export Includes
+                    </p>
+                    <ul className="space-y-2 text-sm text-foreground">
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                        <span>No signup, no credit card &mdash; 3 photos free</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                        <span>Exact RGB 255,255,255 &mdash; the value Amazon actually checks</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                        <span>85% frame fill &mdash; the rule most rejected listings fail</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                        <span>Pass/fail shown per photo &mdash; fix it before you upload, not after Amazon flags it</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                        <span>Runs in your browser &mdash; nothing to install</span>
+                      </li>
+                    </ul>
+                  </div>
                   <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-                  <p className="text-sm font-semibold text-foreground">
-                    Try it on 3 photos, free
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    No account, no card. The files are yours whether you upgrade or not.
-                  </p>
-                  <Button
-                    onClick={() => document.getElementById("pwbg-file-input")?.click()}
-                    className="mt-3 w-full rounded-full bg-primary font-semibold text-primary-foreground hover:opacity-95"
-                  >
-                    Upload your first photo
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                  <p className="mt-2 text-center text-[11px] text-muted-foreground">
-                    Need more? $9.99/mo &middot; or $29 once, forever
-                  </p>
-                </div>
+                    <p className="text-sm font-semibold text-foreground">
+                      Try it on 3 photos, free
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      No account, no card. The files are yours whether you upgrade or not.
+                    </p>
+                    <Button
+                      onClick={() => document.getElementById("pwbg-file-input")?.click()}
+                      className="mt-3 w-full rounded-full bg-primary font-semibold text-primary-foreground hover:opacity-95"
+                    >
+                      Upload your first photo
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                    <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                      Need more? $9.99/mo &middot; or $29 once, forever
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
+            </div>
           </Card>
         </div>
       </div>
@@ -531,8 +532,6 @@ function BeforeAfter({
     </div>
   );
 }
-
-
 
 function TrustBar() {
   return (
@@ -686,7 +685,7 @@ function UseCases() {
       bullets: [
         "100% Amazon algorithm compliant",
         "Instant 1000×1000px square frame fill",
-        "Batch export for whole catalogs",
+        "Batch export for whole catalogs &mdash; or just one listing",
       ],
       beforeImage: sellersHeadphonesBefore.url,
       afterImage: sellersHeadphonesAfter.url,
@@ -769,7 +768,6 @@ function UseCases() {
   );
 }
 
-
 function UseCaseCompare({
   beforeImage,
   afterImage,
@@ -837,7 +835,6 @@ function UseCaseCompare({
     </div>
   );
 }
-
 
 function AmazonGuideDialog({
   open,
@@ -919,17 +916,17 @@ function ValueProps() {
     {
       icon: <Package className="h-5 w-5" />,
       title: "Batch Processing in 20 Seconds",
-      desc: "Upload up to 50 photos at once and download a single organized .ZIP file. No more editing one by one.",
+      desc: "Upload up to 50 photos at once and download a single organized .ZIP file — or just one photo if that's all you need today. No minimum batch size.",
     },
     {
       icon: <ShieldCheck className="h-5 w-5" />,
-      title: "100% Amazon Compliance Guarantee",
-      desc: "Automatically scaled to 1:1 square ratio with exact #FFFFFF pure white background, meeting Amazon's strict 85% frame coverage rule.",
+      title: "AutoCompliance Check, Not a Guess",
+      desc: "A suppressed main image means an invisible listing — and lost sales you'll never see in your reports. Each photo is scored against Amazon's exact #FFFFFF and 85% frame-fill rules before you download, so you catch the problem, not Amazon.",
     },
     {
       icon: <Wand2 className="h-5 w-5" />,
-      title: "Real Soft Shadows (No Flat Stickers)",
-      desc: "Injects soft realistic drop shadows so your product looks natural, expensive, and high-converting.",
+      title: "TrueGround Shadow, Not a Flat Sticker",
+      desc: "A two-layer contact + ambient shadow grounds your product in the frame so it reads as a real photo, not a cutout — the difference between a listing that looks cheap and one that looks trustworthy enough to click.",
     },
   ];
   return (
@@ -1094,7 +1091,7 @@ function Pricing({ onUpgrade }: { onUpgrade: () => void }) {
         "Unlimited Background Removals",
         "50-Photo Batch Upload & ZIP Export",
         "Auto 1000×1000px Amazon Preset",
-        "AI Soft Shadow Generator",
+        "AI TrueGround Shadow Generator",
         "Priority Processing Speed",
         "Commercial License",
       ],
@@ -1124,7 +1121,8 @@ function Pricing({ onUpgrade }: { onUpgrade: () => void }) {
             Simple, Transparent Pricing for Sellers
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Start with 3 free processing credits. Upgrade as your catalog grows.
+            Start with 3 free processing credits. Works the same whether you're
+            listing one product or fifty — upgrade only when your catalog needs it.
           </p>
         </div>
         <div className="mt-14 grid gap-6 md:grid-cols-3">
@@ -1211,7 +1209,7 @@ function PaywallDialog({
         <div className="space-y-3 px-7 py-6">
           {[
             "Download all 50 photos in 1 click (.ZIP)",
-            "Soft Shadows & 1000×1000px Amazon Presets",
+            "TrueGround Shadows & 1000×1000px Amazon Presets",
             "Instant processing (under 2 seconds per image)",
           ].map((b) => (
             <div key={b} className="flex items-start gap-2 text-sm">
