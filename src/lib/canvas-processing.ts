@@ -72,7 +72,7 @@ function renderFeatheredSubject(
  */
 function sharpenLayer(layer: HTMLCanvasElement, scale: number): void {
   if (scale <= 1.15) return;
-  const k = Math.min(0.4, (scale - 1) * 0.35);
+  const k = Math.min(0.25, (scale - 1) * 0.2);
   const ctx = layer.getContext("2d");
   if (!ctx) return;
   const { width, height } = layer;
@@ -184,6 +184,27 @@ function findFootprintSegments(
   }));
 }
 
+function drawAmbientOnly(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  cx: number,
+  width: number,
+  bottomY: number,
+) {
+  const ambient = document.createElement("canvas");
+  ambient.width = size;
+  ambient.height = size;
+  const ax = ambient.getContext("2d");
+  if (ax) {
+    ax.filter = "blur(16px)";
+    ax.fillStyle = "rgba(0, 0, 0, 0.14)";
+    ax.beginPath();
+    ax.ellipse(cx, bottomY + 3, Math.max(width * 0.45, 8), 7, 0, 0, Math.PI * 2);
+    ax.fill();
+    ctx.drawImage(ambient, 0, 0);
+  }
+}
+
 function drawShadowForSegment(
   ctx: CanvasRenderingContext2D,
   size: number,
@@ -212,7 +233,7 @@ function drawShadowForSegment(
   const cxt = contact.getContext("2d");
   if (cxt) {
     cxt.filter = "blur(3px)";
-    cxt.fillStyle = "rgba(0, 0, 0, 0.72)";
+    cxt.fillStyle = "rgba(0, 0, 0, 0.55)";
     cxt.beginPath();
     cxt.ellipse(cx, bottomY, Math.max(width * 0.425, 6), 3, 0, 0, Math.PI * 2);
     cxt.fill();
@@ -403,52 +424,20 @@ function removeDisconnectedDebris(
   width: number,
   height: number,
 ): void {
+  // Speck removal ONLY. Label full connected components of the alpha mask
+  // and drop just the truly tiny ones (dust, stray matting specks). The old
+  // erosion-based "core" approach destroyed thin real structures — hanger
+  // hooks, straps, wires — because thin shapes have no core after erosion
+  // and were classified as debris. Bria's masks are clean; anything
+  // structurally significant must survive.
   const imageData = ctx.getImageData(0, 0, width, height);
   const data = imageData.data;
   const total = width * height;
   const ALPHA_THRESHOLD = 20;
-  const ERODE_RADIUS = Math.min(6, Math.max(2, Math.round(Math.min(width, height) / 200)));
 
   const fg = new Uint8Array(total);
   for (let i = 0; i < total; i++) {
     fg[i] = data[i * 4 + 3] > ALPHA_THRESHOLD ? 1 : 0;
-  }
-
-  // Two-pass box erosion (horizontal min, then vertical min) to find "core"
-  // seeds - cheap O(width*height) sliding-window implementation.
-  const rowEroded = new Uint8Array(total);
-  for (let y = 0; y < height; y++) {
-    const base = y * width;
-    let zeroCount = 0;
-    for (let x = -ERODE_RADIUS; x <= ERODE_RADIUS; x++) {
-      if (x < 0 || x >= width || fg[base + x] === 0) zeroCount++;
-    }
-    for (let x = 0; x < width; x++) {
-      rowEroded[base + x] = zeroCount === 0 ? 1 : 0;
-      const outX = x - ERODE_RADIUS;
-      const inX = x + ERODE_RADIUS + 1;
-      const outBg = outX < 0 || fg[base + outX] === 0;
-      const inBg = inX >= width || fg[base + inX] === 0;
-      if (outBg) zeroCount--;
-      if (inBg) zeroCount++;
-    }
-  }
-
-  const core = new Uint8Array(total);
-  for (let x = 0; x < width; x++) {
-    let zeroCount = 0;
-    for (let y = -ERODE_RADIUS; y <= ERODE_RADIUS; y++) {
-      if (y < 0 || y >= height || rowEroded[y * width + x] === 0) zeroCount++;
-    }
-    for (let y = 0; y < height; y++) {
-      core[y * width + x] = zeroCount === 0 ? 1 : 0;
-      const outY = y - ERODE_RADIUS;
-      const inY = y + ERODE_RADIUS + 1;
-      const outBg = outY < 0 || rowEroded[outY * width + x] === 0;
-      const inBg = inY >= height || rowEroded[inY * width + x] === 0;
-      if (outBg) zeroCount--;
-      if (inBg) zeroCount++;
-    }
   }
 
   const labels = new Int32Array(total);
@@ -457,7 +446,7 @@ function removeDisconnectedDebris(
   const queue = new Int32Array(total);
 
   for (let start = 0; start < total; start++) {
-    if (core[start] !== 1 || labels[start] !== 0) continue;
+    if (fg[start] !== 1 || labels[start] !== 0) continue;
     let qHead = 0;
     let qTail = 0;
     queue[qTail++] = start;
@@ -476,7 +465,7 @@ function removeDisconnectedDebris(
           const nx = x + dx;
           if (nx < 0 || nx >= width) continue;
           const nIdx = ny * width + nx;
-          if (labels[nIdx] !== 0 || core[nIdx] !== 1) continue;
+          if (labels[nIdx] !== 0 || fg[nIdx] !== 1) continue;
           labels[nIdx] = nextLabel;
           queue[qTail++] = nIdx;
         }
@@ -486,59 +475,23 @@ function removeDisconnectedDebris(
     nextLabel++;
   }
 
-  if (nextLabel <= 1) return;
+  if (nextLabel <= 2) return;
 
   let maxArea = 0;
   for (let i = 1; i < nextLabel; i++) {
     if (areas[i] > maxArea) maxArea = areas[i];
   }
+  const keepThreshold = Math.max(64, maxArea * 0.005);
 
-  // Keep threshold 8% of the largest core: kills dust/specks/splash debris
-  // but PRESERVES legitimate secondary objects — a shoebox behind the shoe,
-  // the second shoe of a pair, a held accessory. The old 35% threshold was
-  // tuned for birefnet's noisy masks and deleted real content that
-  // Photoroom-class output keeps.
-  const keepThreshold = maxArea * 0.08;
-  const keep = new Uint8Array(nextLabel);
-  for (let i = 1; i < nextLabel; i++) {
-    keep[i] = areas[i] >= keepThreshold ? 1 : 0;
-  }
-
-  // Multi-source regrowth: expand every core label back through the full
-  // (un-eroded) foreground so thin real details reattach to their blob.
-  let qHead = 0;
-  let qTail = 0;
-  for (let i = 0; i < total; i++) {
-    if (labels[i] !== 0) queue[qTail++] = i;
-  }
-  while (qHead < qTail) {
-    const idx = queue[qHead++];
-    const label = labels[idx];
-    const x = idx % width;
-    const y = (idx / width) | 0;
-    for (let dy = -1; dy <= 1; dy++) {
-      const ny = y + dy;
-      if (ny < 0 || ny >= height) continue;
-      for (let dx = -1; dx <= 1; dx++) {
-        if (dx === 0 && dy === 0) continue;
-        const nx = x + dx;
-        if (nx < 0 || nx >= width) continue;
-        const nIdx = ny * width + nx;
-        if (labels[nIdx] !== 0 || fg[nIdx] !== 1) continue;
-        labels[nIdx] = label;
-        queue[qTail++] = nIdx;
-      }
-    }
-  }
-
+  let changed = false;
   for (let i = 0; i < total; i++) {
     const label = labels[i];
-    if (label !== 0 && !keep[label]) {
+    if (label !== 0 && areas[label] < keepThreshold) {
       data[i * 4 + 3] = 0;
+      changed = true;
     }
   }
-
-  ctx.putImageData(imageData, 0, 0);
+  if (changed) ctx.putImageData(imageData, 0, 0);
 }
 
 
@@ -844,7 +797,16 @@ export async function postProcess(
   if (opts.softShadow) {
     const bottomY = dy + drawH - 1;
     const segments = findFootprintSegments(subjectLayer, bottomY, size);
-    if (segments.length > 0) {
+    // Fabric hems, ruffled edges, and multi-point bottoms produce many
+    // narrow segments; stacking a dark contact ellipse on each merges into
+    // an ugly blob. For those, render ONE soft ambient shadow across the
+    // union and skip the dark contact layer entirely. Contact shadows only
+    // for clearly grounded objects (1-3 solid segments).
+    if (segments.length > 3) {
+      const left = Math.min(...segments.map((s) => s.cx - s.width / 2));
+      const right = Math.max(...segments.map((s) => s.cx + s.width / 2));
+      drawAmbientOnly(ctx, size, (left + right) / 2, right - left, bottomY);
+    } else if (segments.length > 0) {
       for (const seg of segments) {
         drawShadowForSegment(ctx, size, seg.cx, seg.width, bottomY);
       }
