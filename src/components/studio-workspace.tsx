@@ -80,11 +80,15 @@ export function StudioWorkspace({
   // One silent retry before giving up — transient fal.ai hiccups shouldn't
   // cost the user a job.
   const removeWithRetry = useCallback(
-    async (imageUrl: string, model: "birefnet" | "bria"): Promise<{ url: string }> => {
+    async (
+      imageUrl: string,
+      model: "birefnet" | "bria",
+      preUpscale: boolean,
+    ): Promise<{ url: string }> => {
       try {
-        return await removeBg({ data: { imageUrl, model } });
+        return await removeBg({ data: { imageUrl, model, preUpscale } });
       } catch {
-        return await removeBg({ data: { imageUrl, model } });
+        return await removeBg({ data: { imageUrl, model, preUpscale } });
       }
     },
     [removeBg],
@@ -100,11 +104,21 @@ export function StudioWorkspace({
           ),
         );
 
+        // Sources below 900px get AI-upscaled server-side before matting —
+        // the single biggest sharpness lever for thumbnail-grade inputs.
+        const dims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+          const probe = new Image();
+          probe.onload = () => resolve({ w: probe.naturalWidth, h: probe.naturalHeight });
+          probe.onerror = () => reject(new Error("Failed to read image dimensions"));
+          probe.src = dataUrl;
+        });
+        const preUpscale = Math.max(dims.w, dims.h) < 900;
+
         const runPass = async (
           model: "birefnet" | "bria",
           aggressiveDebris: boolean,
         ) => {
-          const { url } = await removeWithRetry(dataUrl, model);
+          const { url } = await removeWithRetry(dataUrl, model, preUpscale);
           return postProcess(url, {
             amazonPreset: amazonRef.current,
             softShadow: shadowRef.current,

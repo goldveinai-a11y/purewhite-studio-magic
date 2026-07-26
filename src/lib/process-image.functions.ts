@@ -22,24 +22,55 @@ export const removeBackground = createServerFn({ method: "POST" })
     ) {
       throw new Error("imageUrl (string) is required");
     }
-    const { imageUrl, model } = input as { imageUrl: string; model?: string };
+    const { imageUrl, model, preUpscale } = input as {
+      imageUrl: string;
+      model?: string;
+      preUpscale?: boolean;
+    };
     if (imageUrl.length > 15_000_000) {
       throw new Error("Image payload too large (max ~11MB base64)");
     }
-    return { imageUrl, model: model === "bria" ? "bria" : "birefnet" };
+    return {
+      imageUrl,
+      model: model === "bria" ? "bria" : "birefnet",
+      preUpscale: preUpscale === true,
+    };
   })
   .handler(async ({ data }) => {
     const key = process.env.FALAI_KEY;
     if (!key) throw new Error("FALAI_KEY is not configured");
+
+    // Small sources (phone thumbnails, marketplace grabs) get an AI
+    // upscale (Recraft Crisp, $0.004 flat — tuned for product shots)
+    // BEFORE matting. Upscaling the source instead of the cutout gives the
+    // matting model more edge detail to work with AND removes the softness
+    // our canvas upscale to the 1000px Amazon frame used to introduce.
+    let sourceUrl = data.imageUrl;
+    if (data.preUpscale) {
+      const upRes = await fetch("https://fal.run/fal-ai/recraft/upscale/crisp", {
+        method: "POST",
+        headers: {
+          Authorization: `Key ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ image_url: sourceUrl }),
+      });
+      if (upRes.ok) {
+        const upJson = (await upRes.json()) as FalResult;
+        const upUrl = upJson.image?.url ?? upJson.images?.[0]?.url;
+        if (upUrl) sourceUrl = upUrl;
+      }
+      // Upscale failure is non-fatal: continue with the original source.
+    }
 
     const useBria = data.model === "bria";
     const endpoint = useBria
       ? "https://fal.run/fal-ai/bria/background/remove"
       : "https://fal.run/fal-ai/birefnet/v2";
     const body = useBria
-      ? { image_url: data.imageUrl }
+      ? { image_url: sourceUrl }
       : {
-          image_url: data.imageUrl,
+          image_url: sourceUrl,
           model: "General Use (Heavy)",
           operating_resolution: "2048x2048",
           refine_foreground: true,
