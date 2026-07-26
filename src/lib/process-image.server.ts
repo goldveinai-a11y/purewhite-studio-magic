@@ -39,7 +39,13 @@ export async function removeBackgroundWithRembg({
       Authorization: `Key ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ image_url: sourceUrl }),
+    body: JSON.stringify({
+      image_url: sourceUrl,
+      alpha_matting: true,
+      alpha_matting_foreground_threshold: 240,
+      alpha_matting_background_threshold: 10,
+      alpha_matting_erode_size: 10,
+    }),
   });
 
   if (!res.ok) {
