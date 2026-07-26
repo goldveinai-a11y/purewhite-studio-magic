@@ -7,6 +7,8 @@
 export type PostProcessOptions = {
   amazonPreset: boolean;
   softShadow: boolean;
+  /** Raise speck threshold (0.5% -> 3%) when the AI QC judge flagged debris. */
+  aggressiveDebris?: boolean;
 };
 
 const AMAZON_SIZE = 1000;
@@ -423,6 +425,7 @@ function removeDisconnectedDebris(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
+  aggressive = false,
 ): void {
   // Speck removal ONLY. Label full connected components of the alpha mask
   // and drop just the truly tiny ones (dust, stray matting specks). The old
@@ -481,7 +484,7 @@ function removeDisconnectedDebris(
   for (let i = 1; i < nextLabel; i++) {
     if (areas[i] > maxArea) maxArea = areas[i];
   }
-  const keepThreshold = Math.max(64, maxArea * 0.005);
+  const keepThreshold = Math.max(64, maxArea * (aggressive ? 0.03 : 0.005));
 
   let changed = false;
   for (let i = 0; i < total; i++) {
@@ -756,7 +759,7 @@ export async function postProcess(
   if (!sctx) throw new Error("Canvas 2D unavailable");
   sctx.drawImage(img, 0, 0);
   fillInteriorHoles(sctx, src.width, src.height);
-  removeDisconnectedDebris(sctx, src.width, src.height);
+  removeDisconnectedDebris(sctx, src.width, src.height, opts.aggressiveDebris === true);
   solidifyInteriorAlpha(sctx, src.width, src.height);
   decontaminateEdgeColors(sctx, src.width, src.height);
   const bounds = findBounds(sctx.getImageData(0, 0, src.width, src.height));
@@ -840,4 +843,30 @@ export async function fileToDataUrl(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error ?? new Error("read failed"));
     reader.readAsDataURL(file);
   });
+}
+
+
+/**
+ * Downscale an image (URL or Blob) to a small JPEG data URL for the AI QC
+ * judge — keeps Claude vision cost at ~fractions of a cent per photo.
+ */
+export async function toJudgeThumb(source: string | Blob, max = 512): Promise<string> {
+  const url = typeof source === "string" ? source : URL.createObjectURL(source);
+  try {
+    const img = await loadImage(url);
+    const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const w = Math.max(1, Math.round(img.naturalWidth * scale));
+    const h = Math.max(1, Math.round(img.naturalHeight * scale));
+    const c = document.createElement("canvas");
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext("2d");
+    if (!ctx) throw new Error("Canvas 2D unavailable");
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    return c.toDataURL("image/jpeg", 0.8);
+  } finally {
+    if (typeof source !== "string") URL.revokeObjectURL(url);
+  }
 }

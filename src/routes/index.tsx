@@ -1076,6 +1076,7 @@ function Pricing({ onUpgrade }: { onUpgrade: () => void }) {
       cadence: "",
       features: [
         "3 Free High-Res Photo Downloads",
+        "AI Quality Inspection Included",
         "Pure #FFFFFF Background Isolation",
         "AI TrueGround Shadow Included",
         "Auto 1000×1000px Amazon Preset",
@@ -1090,11 +1091,13 @@ function Pricing({ onUpgrade }: { onUpgrade: () => void }) {
       price: "$9.99",
       cadence: "/month",
       features: [
-        "Unlimited Background Removals",
+        "1,000 Photos / Month",
+        "AI Quality Inspection on Every Photo",
         "50-Photo Batch Upload & ZIP Export",
         "Everything in Free (Shadow, Amazon Preset)",
         "Priority Processing Speed",
         "Commercial License",
+        "Need more? Top-up 500 photos for $9",
       ],
       cta: "Upgrade to Pro ($9.99/mo)",
       featured: true,

@@ -13,10 +13,10 @@ import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { removeBackground } from "@/lib/process-image.functions";
-import { fileToDataUrl, postProcess, type ComplianceResult } from "@/lib/canvas-processing";
+import { qcJudge, removeBackground } from "@/lib/process-image.functions";
+import { fileToDataUrl, postProcess, toJudgeThumb, type ComplianceResult } from "@/lib/canvas-processing";
 
-type JobStatus = "queued" | "uploading" | "removing" | "compositing" | "done" | "error";
+type JobStatus = "queued" | "uploading" | "removing" | "compositing" | "checking" | "done" | "error";
 
 type Job = {
   id: string;
@@ -27,6 +27,7 @@ type Job = {
   resultUrl?: string;
   resultBlob?: Blob;
   compliance?: ComplianceResult;
+  qc?: { pass: boolean; escalated: boolean; reason?: string };
   error?: string;
 };
 
@@ -56,6 +57,10 @@ export function StudioWorkspace({
   const [activeId, setActiveId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const removeBg = useServerFn(removeBackground);
+  const judge = useServerFn(qcJudge);
+  // null = unknown yet; false = ANTHROPIC_KEY absent -> skip cascade, go
+  // straight to the strong model (previous behavior).
+  const qcAvailableRef = useRef<boolean | null>(null);
 
   // Refs so in-flight batch jobs always read the CURRENT toggle values,
   // even if the user flips them mid-batch.
@@ -75,11 +80,11 @@ export function StudioWorkspace({
   // One silent retry before giving up — transient fal.ai hiccups shouldn't
   // cost the user a job.
   const removeWithRetry = useCallback(
-    async (imageUrl: string): Promise<{ url: string }> => {
+    async (imageUrl: string, model: "birefnet" | "bria"): Promise<{ url: string }> => {
       try {
-        return await removeBg({ data: { imageUrl } });
+        return await removeBg({ data: { imageUrl, model } });
       } catch {
-        return await removeBg({ data: { imageUrl } });
+        return await removeBg({ data: { imageUrl, model } });
       }
     },
     [removeBg],
@@ -88,19 +93,67 @@ export function StudioWorkspace({
   const runJob = useCallback(
     async (job: Job) => {
       try {
-        updateJob(job.id, { status: "uploading", progress: 15 });
+        updateJob(job.id, { status: "uploading", progress: 10 });
         const dataUrl = await fileToDataUrl(
           await (await fetch(job.originalUrl)).blob().then(
             (b) => new File([b], job.name, { type: b.type || "image/png" }),
           ),
         );
-        updateJob(job.id, { status: "removing", progress: 40 });
-        const { url } = await removeWithRetry(dataUrl);
-        updateJob(job.id, { status: "compositing", progress: 75 });
-        const { blob, compliance } = await postProcess(url, {
-          amazonPreset: amazonRef.current,
-          softShadow: shadowRef.current,
-        });
+
+        const runPass = async (
+          model: "birefnet" | "bria",
+          aggressiveDebris: boolean,
+        ) => {
+          const { url } = await removeWithRetry(dataUrl, model);
+          return postProcess(url, {
+            amazonPreset: amazonRef.current,
+            softShadow: shadowRef.current,
+            aggressiveDebris,
+          });
+        };
+
+        let blob: Blob;
+        let compliance: ComplianceResult;
+        let qc: { pass: boolean; escalated: boolean; reason?: string } | undefined;
+
+        if (qcAvailableRef.current === false) {
+          // No AI judge configured: single strong-model pass (legacy path).
+          updateJob(job.id, { status: "removing", progress: 40 });
+          ({ blob, compliance } = await runPass("bria", false));
+        } else {
+          // Cost cascade: cheap model first, AI judge decides escalation.
+          updateJob(job.id, { status: "removing", progress: 30 });
+          ({ blob, compliance } = await runPass("birefnet", false));
+          updateJob(job.id, { status: "checking", progress: 65 });
+          const [origThumb, resThumb] = await Promise.all([
+            toJudgeThumb(dataUrl),
+            toJudgeThumb(blob),
+          ]);
+          const verdict = await judge({ data: { original: origThumb, result: resThumb } });
+          if (!verdict.available) {
+            qcAvailableRef.current = false;
+            // Judge offline -> escalate unconditionally to the strong model.
+            updateJob(job.id, { status: "removing", progress: 75 });
+            ({ blob, compliance } = await runPass("bria", false));
+          } else if (verdict.pass) {
+            qcAvailableRef.current = true;
+            qc = { pass: true, escalated: false };
+          } else {
+            qcAvailableRef.current = true;
+            updateJob(job.id, { status: "removing", progress: 75 });
+            const aggressive = verdict.issues.includes("debris");
+            ({ blob, compliance } = await runPass("bria", aggressive));
+            updateJob(job.id, { status: "checking", progress: 88 });
+            const [o2, r2] = await Promise.all([toJudgeThumb(dataUrl), toJudgeThumb(blob)]);
+            const v2 = await judge({ data: { original: o2, result: r2 } });
+            qc = {
+              pass: v2.available ? v2.pass : true,
+              escalated: true,
+              reason: v2.reason || verdict.reason,
+            };
+          }
+        }
+
         const resultUrl = URL.createObjectURL(blob);
         updateJob(job.id, {
           status: "done",
@@ -108,6 +161,7 @@ export function StudioWorkspace({
           resultBlob: blob,
           resultUrl,
           compliance,
+          qc,
         });
         // Credit already reserved up-front in handleFiles — nothing to do here.
       } catch (err) {
@@ -118,7 +172,7 @@ export function StudioWorkspace({
         toast.error(`${job.name}: ${msg}`);
       }
     },
-    [removeWithRetry, updateJob, setCredits],
+    [removeWithRetry, judge, updateJob, setCredits],
   );
 
   const handleFiles = useCallback(
@@ -341,6 +395,16 @@ function ResultPreview({ job }: { job: Job | undefined }) {
       )}
       {showResult && job.compliance && (
         <div className="absolute left-2 top-2 flex flex-col items-start gap-1">
+          {job.qc && (
+            <span
+              className={`rounded-md px-2 py-0.5 text-[10px] font-semibold text-white ${
+                job.qc.pass ? "bg-emerald-600" : "bg-amber-500"
+              }`}
+              title={job.qc.reason ?? (job.qc.escalated ? "Re-processed on the premium model" : "Passed AI quality inspection")}
+            >
+              {job.qc.pass ? "✓ AI QC" : "⚠ AI QC"}
+            </span>
+          )}
           <span
             className={`rounded-md px-2 py-0.5 text-[10px] font-semibold text-white ${
               job.compliance.backgroundPure.pass ? "bg-emerald-600" : "bg-amber-500"
