@@ -14,7 +14,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { removeBackground } from "@/lib/process-image.functions";
-import { fileToDataUrl, postProcess } from "@/lib/canvas-processing";
+import { fileToDataUrl, postProcess, type ComplianceResult } from "@/lib/canvas-processing";
 
 type JobStatus = "queued" | "uploading" | "removing" | "compositing" | "done" | "error";
 
@@ -26,6 +26,7 @@ type Job = {
   progress: number;
   resultUrl?: string;
   resultBlob?: Blob;
+  compliance?: ComplianceResult;
   error?: string;
 };
 
@@ -91,7 +92,7 @@ export function StudioWorkspace({
         updateJob(job.id, { status: "removing", progress: 40 });
         const { url } = await removeWithRetry(dataUrl);
         updateJob(job.id, { status: "compositing", progress: 75 });
-        const blob = await postProcess(url, {
+        const { blob, compliance } = await postProcess(url, {
           amazonPreset: amazonRef.current,
           softShadow: shadowRef.current,
         });
@@ -101,6 +102,7 @@ export function StudioWorkspace({
           progress: 100,
           resultBlob: blob,
           resultUrl,
+          compliance,
         });
         // Credit already reserved up-front in handleFiles — nothing to do here.
       } catch (err) {
@@ -331,6 +333,16 @@ function ResultPreview({ job }: { job: Job | undefined }) {
             </>
           )}
         </div>
+      )}
+      {showResult && job.compliance && (
+        <span
+          className={`absolute left-2 top-2 rounded-md px-2 py-0.5 text-[10px] font-semibold text-white ${
+            job.compliance.passed ? "bg-emerald-600" : "bg-amber-500"
+          }`}
+          title={`${job.compliance.frameFill.detail} · ${job.compliance.backgroundPure.detail}`}
+        >
+          {job.compliance.passed ? "✓ Passes Amazon spec" : "⚠ Needs review"}
+        </span>
       )}
       <span className="absolute right-2 top-2 rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
         {showResult ? "AFTER · #FFFFFF" : "PROCESSING"}
