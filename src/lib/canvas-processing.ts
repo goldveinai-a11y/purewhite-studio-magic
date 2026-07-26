@@ -90,11 +90,11 @@ function findFootprintSegments(
 ): Array<{ cx: number; width: number }> {
   const ctx = layer.getContext("2d");
   if (!ctx) return [];
-  const bandTop = Math.max(0, Math.round(bottomY - 4));
-  const bandHeight = Math.min(5, size - bandTop);
+  const bandTop = Math.max(0, Math.round(bottomY - 7));
+  const bandHeight = Math.min(9, size - bandTop);
   if (bandHeight <= 0) return [];
   const band = ctx.getImageData(0, bandTop, size, bandHeight).data;
-  const ALPHA_THRESHOLD = 40;
+  const ALPHA_THRESHOLD = 25;
   const covered = new Uint8Array(size);
   for (let x = 0; x < size; x++) {
     for (let row = 0; row < bandHeight; row++) {
@@ -148,7 +148,7 @@ function drawShadowForSegment(
   const ax = ambient.getContext("2d");
   if (ax) {
     ax.filter = "blur(14px)";
-    ax.fillStyle = "rgba(0, 0, 0, 0.12)";
+    ax.fillStyle = "rgba(0, 0, 0, 0.22)";
     ax.beginPath();
     ax.ellipse(cx, bottomY + 3, Math.max(width * 0.475, 8), 8, 0, 0, Math.PI * 2);
     ax.fill();
@@ -162,7 +162,7 @@ function drawShadowForSegment(
   const cxt = contact.getContext("2d");
   if (cxt) {
     cxt.filter = "blur(3px)";
-    cxt.fillStyle = "rgba(0, 0, 0, 0.55)";
+    cxt.fillStyle = "rgba(0, 0, 0, 0.72)";
     cxt.beginPath();
     cxt.ellipse(cx, bottomY, Math.max(width * 0.425, 6), 3, 0, 0, Math.PI * 2);
     cxt.fill();
@@ -325,6 +325,129 @@ function removeDisconnectedDebris(
 }
 
 
+function boxErode(mask: Uint8Array, w: number, h: number, r: number): Uint8Array {
+  const tmp = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    let zeroCount = 0;
+    const rowBase = y * w;
+    for (let x = -r; x <= r; x++) {
+      const xx = Math.min(w - 1, Math.max(0, x));
+      if (!mask[rowBase + xx]) zeroCount++;
+    }
+    for (let x = 0; x < w; x++) {
+      tmp[rowBase + x] = zeroCount === 0 ? 1 : 0;
+      const xOut = x - r;
+      const xIn = x + r + 1;
+      const xxOut = Math.min(w - 1, Math.max(0, xOut));
+      const xxIn = Math.min(w - 1, Math.max(0, xIn));
+      if (xOut >= 0 && xIn < w) {
+        if (!mask[rowBase + xxOut]) zeroCount--;
+        if (!mask[rowBase + xxIn]) zeroCount++;
+      }
+    }
+  }
+  const out = new Uint8Array(w * h);
+  for (let x = 0; x < w; x++) {
+    let zeroCount = 0;
+    for (let y = -r; y <= r; y++) {
+      const yy = Math.min(h - 1, Math.max(0, y));
+      if (!tmp[yy * w + x]) zeroCount++;
+    }
+    for (let y = 0; y < h; y++) {
+      out[y * w + x] = zeroCount === 0 ? 1 : 0;
+      const yOut = y - r;
+      const yIn = y + r + 1;
+      const yyOut = Math.min(h - 1, Math.max(0, yOut));
+      const yyIn = Math.min(h - 1, Math.max(0, yIn));
+      if (yOut >= 0 && yIn < h) {
+        if (!tmp[yyOut * w + x]) zeroCount--;
+        if (!tmp[yyIn * w + x]) zeroCount++;
+      }
+    }
+  }
+  return out;
+}
+
+// Fixes color-fringing / "white spots" / faint dark specks: the AI matting
+// model's semi-transparent rim pixels can retain the hue of whatever
+// background was behind the subject, even at alpha very close to fully
+// opaque (250+). Compositing that tinted rim onto a white canvas produces a
+// visible colored fringe, and very low-alpha stray pixels (below the debris
+// remover's own threshold) show up as faint colored specks on white.
+// Fix: find a "safe core" well inside the subject via erosion (guaranteed
+// untouched by any edge/background bleed), then flood-fill that core's
+// color outward through the full alpha mask. Alpha is never modified - only
+// RGB is corrected for rim pixels - so edge softness/antialiasing is
+// unchanged, only the tint is removed.
+function decontaminateEdgeColors(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): void {
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  const total = width * height;
+
+  const fg = new Uint8Array(total);
+  for (let i = 0; i < total; i++) {
+    fg[i] = data[i * 4 + 3] > 0 ? 1 : 0;
+  }
+
+  const ERODE_RADIUS = Math.min(10, Math.max(3, Math.round(Math.min(width, height) / 150)));
+  const core = boxErode(fg, width, height, ERODE_RADIUS);
+
+  const rOut = new Uint8Array(total);
+  const gOut = new Uint8Array(total);
+  const bOut = new Uint8Array(total);
+  const claimed = new Uint8Array(total);
+  const queue = new Int32Array(total);
+  let qHead = 0;
+  let qTail = 0;
+
+  for (let i = 0; i < total; i++) {
+    if (core[i]) {
+      rOut[i] = data[i * 4];
+      gOut[i] = data[i * 4 + 1];
+      bOut[i] = data[i * 4 + 2];
+      claimed[i] = 1;
+      queue[qTail++] = i;
+    }
+  }
+
+  while (qHead < qTail) {
+    const idx = queue[qHead++];
+    const x = idx % width;
+    const y = (idx / width) | 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      const ny = y + dy;
+      if (ny < 0 || ny >= height) continue;
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = x + dx;
+        if (nx < 0 || nx >= width) continue;
+        const nIdx = ny * width + nx;
+        if (claimed[nIdx]) continue;
+        if (!fg[nIdx]) continue;
+        rOut[nIdx] = rOut[idx];
+        gOut[nIdx] = gOut[idx];
+        bOut[nIdx] = bOut[idx];
+        claimed[nIdx] = 1;
+        queue[qTail++] = nIdx;
+      }
+    }
+  }
+
+  for (let i = 0; i < total; i++) {
+    if (fg[i] && !core[i]) {
+      data[i * 4] = rOut[i];
+      data[i * 4 + 1] = gOut[i];
+      data[i * 4 + 2] = bOut[i];
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+}
+
 export async function postProcess(
   transparentPngUrl: string,
   opts: PostProcessOptions,
@@ -339,6 +462,7 @@ export async function postProcess(
   if (!sctx) throw new Error("Canvas 2D unavailable");
   sctx.drawImage(img, 0, 0);
   removeDisconnectedDebris(sctx, src.width, src.height);
+  decontaminateEdgeColors(sctx, src.width, src.height);
   const bounds = findBounds(sctx.getImageData(0, 0, src.width, src.height));
 
   const size = opts.amazonPreset
