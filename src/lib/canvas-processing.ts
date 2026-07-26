@@ -427,12 +427,17 @@ function removeDisconnectedDebris(
   height: number,
   aggressive = false,
 ): void {
-  // Speck removal ONLY. Label full connected components of the alpha mask
-  // and drop just the truly tiny ones (dust, stray matting specks). The old
-  // erosion-based "core" approach destroyed thin real structures — hanger
-  // hooks, straps, wires — because thin shapes have no core after erosion
-  // and were classified as debris. Bria's masks are clean; anything
-  // structurally significant must survive.
+  // Two-stage debris remover:
+  //   Stage A - Erosion-based bridge break. Splashes/dust/mist attach to
+  //     the product through 1-3px filaments, so a plain connected-component
+  //     pass keeps them. Erode the mask by ~0.5% of the smaller dimension
+  //     (~3-6px) so those filaments snap, label the eroded "cores", keep
+  //     any core >= 20% of the largest, then regrow through the full
+  //     un-eroded mask. Real thin structures (laces, straps, hanger hooks)
+  //     are reattached during regrowth because they connect to a surviving
+  //     product core.
+  //   Stage B - Small-blob speck filter on what remains: kills isolated
+  //     droplets/dust that never touched the product at all.
   const imageData = ctx.getImageData(0, 0, width, height);
   const data = imageData.data;
   const total = width * height;
@@ -443,6 +448,93 @@ function removeDisconnectedDebris(
     fg[i] = data[i * 4 + 3] > ALPHA_THRESHOLD ? 1 : 0;
   }
 
+  // ---- Stage A: erosion-based bridge break ----
+  const erodeR = Math.max(3, Math.round(Math.min(width, height) * 0.005));
+  const eroded = boxErode(fg, width, height, erodeR);
+  const coreLabels = new Int32Array(total);
+  const coreAreas: number[] = [0];
+  const cq = new Int32Array(total);
+  let coreNext = 1;
+  for (let s = 0; s < total; s++) {
+    if (!eroded[s] || coreLabels[s] !== 0) continue;
+    let h0 = 0;
+    let h1 = 0;
+    cq[h1++] = s;
+    coreLabels[s] = coreNext;
+    let a = 0;
+    while (h0 < h1) {
+      const idx = cq[h0++];
+      a++;
+      const x = idx % width;
+      const y = (idx / width) | 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        const ny = y + dy;
+        if (ny < 0 || ny >= height) continue;
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = x + dx;
+          if (nx < 0 || nx >= width) continue;
+          const ni = ny * width + nx;
+          if (coreLabels[ni] !== 0 || !eroded[ni]) continue;
+          coreLabels[ni] = coreNext;
+          cq[h1++] = ni;
+        }
+      }
+    }
+    coreAreas[coreNext] = a;
+    coreNext++;
+  }
+
+  // If erosion wiped everything (thin/small product), skip Stage A entirely
+  // rather than clear the whole subject.
+  if (coreNext > 1) {
+    let maxCore = 0;
+    for (let i = 1; i < coreNext; i++) if (coreAreas[i] > maxCore) maxCore = coreAreas[i];
+    const keepCoreMin = maxCore * (aggressive ? 0.35 : 0.2);
+    const keepCore = new Uint8Array(coreNext);
+    for (let i = 1; i < coreNext; i++) keepCore[i] = coreAreas[i] >= keepCoreMin ? 1 : 0;
+
+    // Multi-source regrowth through the full foreground mask
+    const claimed = new Uint8Array(total);
+    const rq = new Int32Array(total);
+    let r0 = 0;
+    let r1 = 0;
+    for (let i = 0; i < total; i++) {
+      const lbl = coreLabels[i];
+      if (lbl !== 0 && keepCore[lbl]) {
+        claimed[i] = 1;
+        rq[r1++] = i;
+      }
+    }
+    if (r1 > 0) {
+      while (r0 < r1) {
+        const idx = rq[r0++];
+        const x = idx % width;
+        const y = (idx / width) | 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          const ny = y + dy;
+          if (ny < 0 || ny >= height) continue;
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const nx = x + dx;
+            if (nx < 0 || nx >= width) continue;
+            const ni = ny * width + nx;
+            if (claimed[ni] || !fg[ni]) continue;
+            claimed[ni] = 1;
+            rq[r1++] = ni;
+          }
+        }
+      }
+      for (let i = 0; i < total; i++) {
+        if (fg[i] && !claimed[i]) {
+          data[i * 4 + 3] = 0;
+          fg[i] = 0;
+        }
+      }
+    }
+  }
+
+  // ---- Stage B: small-blob speck filter on the remaining mask ----
   const labels = new Int32Array(total);
   const areas: number[] = [0];
   let nextLabel = 1;
@@ -478,23 +570,24 @@ function removeDisconnectedDebris(
     nextLabel++;
   }
 
-  if (nextLabel <= 2) return;
+  if (nextLabel <= 2) {
+    ctx.putImageData(imageData, 0, 0);
+    return;
+  }
 
   let maxArea = 0;
   for (let i = 1; i < nextLabel; i++) {
     if (areas[i] > maxArea) maxArea = areas[i];
   }
-  const keepThreshold = Math.max(64, maxArea * (aggressive ? 0.12 : 0.005));
+  const keepThreshold = Math.max(64, maxArea * (aggressive ? 0.12 : 0.02));
 
-  let changed = false;
   for (let i = 0; i < total; i++) {
     const label = labels[i];
     if (label !== 0 && areas[label] < keepThreshold) {
       data[i * 4 + 3] = 0;
-      changed = true;
     }
   }
-  if (changed) ctx.putImageData(imageData, 0, 0);
+  ctx.putImageData(imageData, 0, 0);
 }
 
 
