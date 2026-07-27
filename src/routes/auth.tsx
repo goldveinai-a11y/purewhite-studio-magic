@@ -1,6 +1,7 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { track } from "@/lib/ga4-client";
 import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +46,21 @@ function AuthPage() {
   useEffect(() => {
     let mounted = true;
     supabase.auth.getUser().then(({ data }) => {
-      if (mounted && data.user) window.location.href = dest;
+      if (mounted && data.user) {
+        // This branch is reached when the page mounts with a session
+        // already present — in practice that's the Google OAuth redirect
+        // returning here. created_at vs last_sign_in_at within a few
+        // seconds of each other means the account was just created;
+        // otherwise it's a returning user. Email/password auth fires its
+        // own explicit sign_up/login events below instead of through here.
+        const created = Date.parse(data.user.created_at);
+        const lastSignIn = data.user.last_sign_in_at
+          ? Date.parse(data.user.last_sign_in_at)
+          : created;
+        const isNew = Math.abs(lastSignIn - created) < 10_000;
+        track(isNew ? "sign_up" : "login", { method: "google" });
+        window.location.href = dest;
+      }
     });
     return () => {
       mounted = false;
@@ -84,11 +99,13 @@ function AuthPage() {
           },
         });
         if (error) throw error;
+        track("sign_up", { method: "email" });
         toast.success("Check your email to confirm your account, then sign in.");
         setMode("signin");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        track("login", { method: "email" });
         window.location.href = dest;
       }
     } catch (e) {

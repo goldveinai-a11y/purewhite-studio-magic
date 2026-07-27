@@ -61,6 +61,12 @@ async function createCheckout(
     productKey: 'pro' | 'lifetime' | 'extra_pack';
     returnUrl: string;
     environment: StripeEnv;
+    /** GA4 client_id, captured client-side from the `_ga` cookie, so the
+     * webhook can later attribute the resulting `purchase` event back to
+     * this visitor's session instead of firing as an anonymous server
+     * event. Optional — checkout must never fail because analytics is
+     * blocked or the cookie hasn't been set yet. */
+    gaClientId?: string;
   },
   userId: string,
   email: string | undefined,
@@ -88,9 +94,11 @@ async function createCheckout(
       return_url: params.returnUrl,
       customer: customerId,
       ...(!isRecurring && { payment_intent_data: { description } }),
-      metadata: { userId, product: params.productKey },
+      metadata: { userId, product: params.productKey, gaClientId: params.gaClientId ?? '' },
       ...(isRecurring && {
-        subscription_data: { metadata: { userId, product: params.productKey } },
+        subscription_data: {
+          metadata: { userId, product: params.productKey, gaClientId: params.gaClientId ?? '' },
+        },
       }),
       managed_payments: { enabled: true },
     } as Parameters<typeof stripe.checkout.sessions.create>[0]);
@@ -103,7 +111,7 @@ async function createCheckout(
 
 export const createProCheckout = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { returnUrl: string; environment: StripeEnv }) => data)
+  .inputValidator((data: { returnUrl: string; environment: StripeEnv; gaClientId?: string }) => data)
   .handler(async ({ data, context }): Promise<CheckoutResult> => {
     const { userId, supabase } = context;
     const { data: { user } } = await supabase.auth.getUser();
@@ -116,7 +124,7 @@ export const createProCheckout = createServerFn({ method: 'POST' })
 
 export const createLifetimeCheckout = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { returnUrl: string; environment: StripeEnv }) => data)
+  .inputValidator((data: { returnUrl: string; environment: StripeEnv; gaClientId?: string }) => data)
   .handler(async ({ data, context }): Promise<CheckoutResult> => {
     const { userId, supabase } = context;
     const { data: { user } } = await supabase.auth.getUser();
@@ -129,7 +137,7 @@ export const createLifetimeCheckout = createServerFn({ method: 'POST' })
 
 export const createExtraPackCheckout = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { returnUrl: string; environment: StripeEnv }) => data)
+  .inputValidator((data: { returnUrl: string; environment: StripeEnv; gaClientId?: string }) => data)
   .handler(async ({ data, context }): Promise<CheckoutResult> => {
     const { userId, supabase } = context;
     // Extra Pack only for paying users

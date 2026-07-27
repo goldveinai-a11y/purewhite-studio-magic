@@ -18,6 +18,7 @@ import { removeBackground } from "@/lib/process-image.functions";
 import { reservePhotos } from "@/lib/payments.functions";
 import { fileToDataUrl, postProcess, type ComplianceResult } from "@/lib/canvas-processing";
 import { useTierLimits } from "@/hooks/use-tier-limits";
+import { track } from "@/lib/ga4-client";
 
 // Downscale big source photos client-side before sending to the matting
 // backend. Bria/Birefnet operate at ~1024–2048px internally, so a 4000px
@@ -173,15 +174,21 @@ export function StudioWorkspace({
           compliance,
         });
         // Credit already reserved up-front in handleFiles — nothing to do here.
+        track("photo_processed", {
+          tier,
+          amazon_preset: amazonRef.current,
+          soft_shadow: shadowRef.current,
+        });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Processing failed";
         updateJob(job.id, { status: "error", progress: 100, error: msg });
         // Refund the reserved credit — failures are on us, not the user.
         setCredits((c) => c + 1);
         toast.error(`${job.name}: ${msg}`);
+        track("photo_processing_failed", { tier, error_reason: msg.slice(0, 100) });
       }
     },
-    [releaseUrl, removeBg, trackUrl, updateJob, setCredits],
+    [releaseUrl, removeBg, tier, trackUrl, updateJob, setCredits],
   );
 
   const handleFiles = useCallback(
@@ -204,15 +211,18 @@ export function StudioWorkspace({
 
       // Paywall gates — checked BEFORE any processing starts
       if (files.length > FREE_BATCH_LIMIT && credits < 999) {
+        track("paywall_viewed", { trigger_reason: "batch_limit", tier });
         onPaywall();
         toast.info(`Free tier supports up to ${FREE_BATCH_LIMIT} photos per batch.`);
         return;
       }
       if (credits <= 0) {
+        track("paywall_viewed", { trigger_reason: "credits_exhausted", tier });
         onPaywall();
         return;
       }
       if (files.length > credits) {
+        track("paywall_viewed", { trigger_reason: "insufficient_credits", tier });
         onPaywall();
         toast.info(`You have ${credits} credit(s). Upgrade to process more.`);
         return;
@@ -229,6 +239,7 @@ export function StudioWorkspace({
           const result = await reserveServerPhotos({ data: { count: files.length } });
           const ok = "ok" in result && result.ok === true;
           if (!ok) {
+            track("paywall_viewed", { trigger_reason: "quota_exceeded", tier });
             onTopUp?.();
             return;
           }
@@ -240,6 +251,7 @@ export function StudioWorkspace({
           return;
         }
       } else if (!reserve(files.length)) {
+        track("paywall_viewed", { trigger_reason: "free_limit", tier });
         onTopUp?.();
         return;
       }
@@ -247,6 +259,7 @@ export function StudioWorkspace({
       // Reserve credits for the WHOLE batch atomically, before jobs start.
       // Failed jobs refund inside runJob.
       setCredits((c) => Math.max(0, c - files.length));
+      track("photos_uploaded", { file_count: files.length, tier });
 
       const newJobs: Job[] = files.map((f) => ({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -285,6 +298,7 @@ export function StudioWorkspace({
       return;
     }
     triggerDownload(target.resultBlob, renameToPng(target.name));
+    track("photo_downloaded", { tier });
   };
 
   const downloadZip = async () => {
@@ -298,6 +312,7 @@ export function StudioWorkspace({
     }
     const blob = await zip.generateAsync({ type: "blob" });
     triggerDownload(blob, "purewhite-batch.zip");
+    track("batch_downloaded", { tier, photo_count: doneJobs.length });
   };
 
   const remove = (id: string) => {

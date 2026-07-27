@@ -112,10 +112,29 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  // Client-visible only (Measurement IDs are public identifiers, not
+  // secrets - same convention as VITE_PAYMENTS_CLIENT_TOKEN below). Absent
+  // until the GA4 property is created; the whole snippet is skipped rather
+  // than shipping a broken gtag call.
+  const gaId = import.meta.env.VITE_GA4_MEASUREMENT_ID as string | undefined;
   return (
     <html lang="en-US">
       <head>
         <HeadContent />
+        {gaId ? (
+          <>
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
+            <script
+              // send_page_view stays on the default (true): TanStack Router
+              // does full <a> navigations for most routes in this app, so
+              // gtag's own history listener already covers page_view
+              // correctly without extra wiring.
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}');`,
+              }}
+            />
+          </>
+        ) : null}
       </head>
       <body>
         {children}

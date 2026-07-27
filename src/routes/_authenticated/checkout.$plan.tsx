@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
+import { getGaClientId, track } from "@/lib/ga4-client";
 
 export const Route = createFileRoute("/_authenticated/checkout/$plan")({
   component: CheckoutPage,
@@ -41,18 +42,47 @@ function CheckoutPage() {
     },
   }[plan as "pro" | "lifetime" | "extra"];
 
+  // Informational mirror of the live Stripe Price amounts, used only to
+  // report `value`/`items` on the begin_checkout event — NOT the source of
+  // truth for what's actually charged (that's the Stripe Price object
+  // itself, looked up server-side by lookup_key). Keep in sync manually if
+  // prices change in the Stripe Dashboard.
+  const PLAN_VALUE: Record<"pro" | "lifetime" | "extra", number> = {
+    pro: 6.99,
+    lifetime: 29,
+    extra: 9.99,
+  };
+
   const options = useMemo(
     () => ({
       fetchClientSecret: async (): Promise<string> => {
         const returnUrl = `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}&plan=${plan}`;
         const environment = getStripeEnvironment();
+        const gaClientId = getGaClientId() ?? undefined;
+        const validPlan = (["pro", "lifetime", "extra"] as const).includes(
+          plan as "pro" | "lifetime" | "extra",
+        );
+        if (validPlan) {
+          track("begin_checkout", {
+            currency: "USD",
+            value: PLAN_VALUE[plan as "pro" | "lifetime" | "extra"],
+            items: [
+              {
+                item_id: plan,
+                item_name: planCopy?.title ?? plan,
+                price: PLAN_VALUE[plan as "pro" | "lifetime" | "extra"],
+                quantity: 1,
+              },
+            ],
+          });
+        }
         let result: { clientSecret: string } | { error: string };
         if (plan === "pro") {
-          result = await createProCheckout({ data: { returnUrl, environment } });
+          result = await createProCheckout({ data: { returnUrl, environment, gaClientId } });
         } else if (plan === "lifetime") {
-          result = await createLifetimeCheckout({ data: { returnUrl, environment } });
+          result = await createLifetimeCheckout({ data: { returnUrl, environment, gaClientId } });
         } else if (plan === "extra") {
-          result = await createExtraPackCheckout({ data: { returnUrl, environment } });
+          result = await createExtraPackCheckout({ data: { returnUrl, environment, gaClientId } });
         } else {
           throw new Error("Unknown plan");
         }
