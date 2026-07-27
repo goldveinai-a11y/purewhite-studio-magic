@@ -16,15 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { removeBackground } from "@/lib/process-image.functions";
 import { fileToDataUrl, postProcess, type ComplianceResult } from "@/lib/canvas-processing";
-import { useTierLimits } from "@/hooks/use-tier-limits";
-
-// NOTE: an earlier version of this pipeline auto-re-ran flagged photos
-// through a second, premium-model pass ("QC"/escalation). Removed - it
-// doubled the removeBg + postProcess round-trip for any flagged photo and
-// pushed batch time to 30-40s for just 3 photos. Tier now only decides
-// which model runs ONCE per photo (see firstTier below) - never a second
-// call. No Claude/Anthropic API is involved in image processing at all;
-// every model call here goes straight to fal.ai.
 
 // Downscale big source photos client-side before sending to the matting
 // backend. Bria/Birefnet operate at ~1024–2048px internally, so a 4000px
@@ -88,21 +79,14 @@ export function StudioWorkspace({
   credits,
   setCredits,
   onPaywall,
-  onTopUp,
 }: {
   amazonPreset: boolean;
   softShadow: boolean;
   credits: number;
   setCredits: (updater: (prev: number) => number) => void;
   onPaywall: () => void;
-  onTopUp?: () => void;
 }) {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const { tier, reserve } = useTierLimits();
-  const tierRef = useRef(tier);
-  useEffect(() => {
-    tierRef.current = tier;
-  }, [tier]);
   // Track the selected job by STABLE id, never by array index: new batches
   // are prepended to `jobs` and rows can be removed, both of which shift
   // indices. Index-based selection made the preview (and its compliance
@@ -148,21 +132,11 @@ export function StudioWorkspace({
         // если исходник меньше — AI-апскейл до 2K перед rembg, иначе прямой путь.
         const preUpscale = Math.max(dims.w, dims.h) < 1200;
 
-        // Free tier always gets the premium model (Bria) - capped at 3
-        // credits total, so the cost delta is a few cents, and it's the
-        // demo that has to sell the upgrade. Pro/Lifetime default to the
-        // cheap model (rembg) - single call, no re-run (see NOTE above imports).
-        const firstTier: "premium" | "economy" =
-          tierRef.current === "free" ? "premium" : "economy";
-
+        // Rembg-only path: без silent retry и slow fallback — предсказуемое время.
         updateJob(job.id, { status: "removing", progress: 30 });
-        const matted = await removeBg({
-          data: { imageUrl: dataUrl, preUpscale, modelTier: firstTier },
-        });
+        const matted = await removeBg({ data: { imageUrl: dataUrl, preUpscale } });
         updateJob(job.id, { status: "compositing", progress: 60 });
-        // Single pass only - no quality re-check, no second model call. See
-        // the NOTE near the top of this file for why.
-        const { blob, compliance } = await postProcess(matted.url, {
+        let { blob, compliance } = await postProcess(matted.url, {
           amazonPreset: amazonRef.current,
           softShadow: shadowRef.current,
         });
@@ -221,13 +195,6 @@ export function StudioWorkspace({
         return;
       }
 
-      // Hidden Pro/Lifetime processing allowance - never surfaced in copy.
-      // Free tier is unaffected (reserve() is a no-op passthrough for it).
-      if (!reserve(files.length)) {
-        onTopUp?.();
-        return;
-      }
-
       // Reserve credits for the WHOLE batch atomically, before jobs start.
       // Failed jobs refund inside runJob.
       setCredits((c) => Math.max(0, c - files.length));
@@ -256,7 +223,7 @@ export function StudioWorkspace({
       }
       await Promise.all(workers);
     },
-    [credits, onPaywall, onTopUp, reserve, runJob, setCredits],
+    [credits, onPaywall, runJob, setCredits],
   );
 
   const doneJobs = jobs.filter((j) => j.status === "done" && j.resultBlob);
