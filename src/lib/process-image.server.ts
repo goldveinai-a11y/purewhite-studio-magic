@@ -14,10 +14,11 @@ export type RemoveBackgroundInput = {
 // Free tier always gets `premium` (Bria) - it's the first impression that
 // has to sell the product, and volume is capped at 3 credits so the cost
 // difference is a few cents total. Pro/Lifetime default to `economy`
-// (rembg) since most real-world catalog photos are already simple; the
-// caller (studio-workspace) re-runs a single photo through `premium` only
-// when the economy result's quality signal looks bad (see
-// canvas-processing.ts QualitySignal + the escalation logic in runJob).
+// (rembg) since most real-world catalog photos are already simple.
+// Exactly ONE model call per photo, always - no quality-based re-run/escalation.
+// An earlier version auto-re-ran flagged photos through a second premium-model
+// pass; that doubled processing time to 30-40s for a 3-photo batch and was
+// removed for good. See the NOTE in studio-workspace.tsx (runJob) for detail.
 export async function removeBackground({
   apiKey,
   imageUrl,
