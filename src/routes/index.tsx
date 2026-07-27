@@ -16,6 +16,8 @@ import {
   Image as ImageIcon,
   Lock,
   Globe,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -430,6 +432,21 @@ function Hero({
                       <li className="flex items-start gap-2">
                         <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
                         <span>Runs in your browser &mdash; nothing to install</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                    <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-primary">
+                      Why Photo Quality Matters
+                    </p>
+                    <ul className="space-y-2 text-sm text-foreground">
+                      <li className="flex items-start gap-2">
+                        <TrendingUp className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                        <span>Clean, compliant photos lift purchase conversion up to 37%</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <TrendingDown className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
+                        <span>Grainy backgrounds and off-white fills cut conversion up to 17%</span>
                       </li>
                     </ul>
                   </div>
