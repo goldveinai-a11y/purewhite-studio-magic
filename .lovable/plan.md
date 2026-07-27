@@ -1,72 +1,103 @@
-## Диагноз
+## Что настраиваем
 
-Сейчас в пайплайне используется самая дешёвая и слабая модель — `fal-ai/imageutils/rembg` (U²-Net, ~$0.001/фото). Именно она даёт:
-- жёлтые «брызги» вокруг подошвы кроссовок,
-- нечищеный фон между обувью,
-- рваные края на сложных силуэтах.
+3 продукта в Stripe + серверный учёт лимитов вместо localStorage.
 
-Плюс: для маленьких фото (<1200px) сначала гонится Recraft-апскейл — он «дорисовывает» детали, которые потом путают rembg, и время растёт до 10–12 сек на батч из 3 фото.
+| Продукт | Тип | Цена | Что даёт |
+|---|---|---|---|
+| **Pro** | Subscription monthly | $6.99/мес | tier=`pro`, скрытый лимит 200 фото/мес |
+| **Lifetime** | One-time | $29.99 | tier=`lifetime`, скрытый лимит 500 фото всего |
+| **Extra Pack** | One-time | $9.99 | +500 фото к балансу (только для pro/lifetime при исчерпании) |
 
-**Вывод:** дешевизна модели ($0.001) уничтожает продукт. Пользователь видит артефакты — не платит. Экономия $0.02 не стоит нулевой конверсии.
+Free — без Stripe, 3 локальных кредита как сейчас.
 
-## Что делаем — одно ключевое изменение
+## UI-правила (по ответам)
 
-**Заменить основную модель матирования с `rembg` на `BRIA RMBG 2.0`** (`fal-ai/bria/background/remove`).
+- Pricing-страницу **не трогаем вообще** — там уже есть Free / Pro $6.99 / Lifetime $29.99.
+- Extra Pack **не показываем** в pricing — только модалка «You've used all photos this month. Buy 500 more for $9.99» при исчерпании лимита.
+- Счётчик кредитов в шапке студии **остаётся только для Free** (как сейчас). Для Pro и Lifetime — счётчика нет.
+- Нет меню «My plan» — не добавляем.
 
-Почему именно BRIA 2.0:
-- обучена на e-commerce данных → чистые края у обуви, одежды, стекла, меха,
-- закрывает межобъектные «дыры» (как между кроссовками),
-- время ~1.5–2.5 сек на фото на fal.ai (не медленнее текущего rembg+upscale),
-- себестоимость ~$0.018/фото.
+## Порядок работ
 
-## Юнит-экономика после перехода
+### 1. Включить Stripe
+- `recommend_payment_provider` → подтвердить Stripe (цифровой продукт).
+- `enable_stripe_payments` (встроенный, не BYOK).
+- Tax handling: full compliance (`managed_payments`, +3.5%) — цифровой SaaS, Stripe берёт налоги/споры/поддержку.
 
-| Тариф | Цена | Себестоимость 1 фото | Реальный расход (80% лимита не выбирают) | Маржа |
-|---|---|---|---|---|
-| Free (3 фото) | $0 | $0.018 | $0.054 CAC | инвестиция в конверсию |
-| Pro $9.99/мес, 300 фото | $9.99 | $0.018 | ~100 фото × $0.018 = $1.80 | **~82%** |
-| Lifetime pack 100 фото $9 | $9 | $0.018 | $1.80 | **~80%** |
+### 2. Включить Lovable Cloud + auth
+localStorage-хранение tier'а — дыра: юзер обнулит devtools и получит бесконечно. Для платного нужен серверный источник правды.
+- Enable Cloud.
+- Auth: **email/password + Google** (дефолт).
+- Простой `/auth` роут для sign-in/sign-up. `_authenticated/` слой для защищённых серверных вызовов.
 
-Экономика сходится с большим запасом даже без миграции на self-hosted GPU.
+### 3. Схема БД (миграция)
+```
+entitlements(
+  user_id uuid PK → auth.users,
+  tier text CHECK IN ('free','pro','lifetime') default 'free',
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  pro_period text,            -- 'YYYY-MM' — сброс pro_used помесячно
+  pro_used int default 0,
+  lifetime_used int default 0,
+  extra_pack_balance int default 0,
+  updated_at timestamptz
+)
 
-## Что убираем и почему
+stripe_events_processed(event_id text PK, processed_at timestamptz)
+```
++ RLS: SELECT только своей строке; писать — только service_role. GRANT'ы по стандарту.
++ Триггер `on auth.users insert` → создаёт строку `entitlements` с tier=free.
 
-1. **`preUpscale` через Recraft** — удалить полностью. BRIA 2.0 внутренне работает на 2K и корректно обрабатывает мелкие исходники без предварительного AI-апскейла. Убираем лишний вызов ($0.04) и −2–4 сек на маленьких фото.
-2. **`sourceUrl` в ответе** — больше не нужен (нет upscale-этапа).
+### 4. Создать продукты в Stripe
+`batch_create_product` с 3 SKU (Pro monthly recurring, Lifetime one-time, Extra Pack one-time). Tax code для SaaS/цифрового по каталогу Stripe.
 
-## Что НЕ меняем
+### 5. Server functions (аутентифицированные)
+- `getEntitlements()` — читает свою строку.
+- `createProCheckout()` / `createLifetimeCheckout()` / `createExtraPackCheckout()` — создают Stripe Checkout Session, возвращают URL. Extra Pack доступен только если tier ∈ {pro, lifetime}.
+- `reservePhotos(n)` — атомарно (через SQL функцию с транзакцией) списывает: сначала из `extra_pack_balance`, затем из месячного/lifetime лимита. Возвращает `{ ok, needTopUp, remaining }`.
 
-- Клиентский `downscaleForUpload` (1600px JPEG q0.9) — остаётся.
-- `postProcess` на canvas (белый фон #FFFFFF, Amazon 85% fill, soft shadow, compliance-бейджи) — остаётся. Гарантия pure white RGB(255,255,255) — только через canvas, никакая AI-модель не даёт битово чистый белый.
-- Всю UI-обвязку (batch, credits, retry, thumbnails) — остаётся.
+### 6. Webhook
+`src/routes/api/public/stripe-webhook.ts`:
+- Проверка HMAC подписи Stripe перед обработкой (HIGH priority).
+- Идемпотентность через `stripe_events_processed`.
+- События:
+  - `checkout.session.completed` — по `metadata.product` (`pro` / `lifetime` / `extra_pack`) и `metadata.user_id` обновляет `entitlements`: ставит tier, сохраняет `stripe_customer_id`/`stripe_subscription_id`, для extra_pack `extra_pack_balance += 500`.
+  - `customer.subscription.deleted` / `updated` со статусом canceled/unpaid → tier обратно в `free`.
+  - `invoice.paid` (renewal) → на всякий случай `pro_period = current month`, `pro_used = 0` при переходе месяца (основной сброс всё равно делается в `reservePhotos` при смене периода).
 
-## Изменения в коде
+Webhook secret хранится через `add_secret` (`STRIPE_WEBHOOK_SECRET`).
 
-**`src/lib/process-image.server.ts`:**
-- Убрать блок `if (preUpscale)` с вызовом Recraft.
-- Заменить endpoint `https://fal.run/fal-ai/imageutils/rembg` на `https://fal.run/fal-ai/bria/background/remove`.
-- Тело запроса BRIA: `{ image_url: sourceUrl, content_moderation: false }` (без модерации — коммерческие фото не должны блокироваться).
-- Оставить тот же разбор ответа (`image.url` или `images[0].url`).
-- Из типа `RemoveBackgroundInput` убрать `preUpscale`.
+### 7. Клиентская логика (без изменений UI-раскладки)
+- `usePersistedCredits` → оставить **только для tier=free** (не удалять, локальный счётчик 3 фото).
+- `useTierLimits` → заменить его внутренности на вызов `getEntitlements` (React Query, `useSuspenseQuery`). Никакого localStorage для pro/lifetime.
+- В `studio-workspace.tsx` перед стартом батча — вызвать `reservePhotos(n)`:
+  - Free: как сейчас, локальный счётчик.
+  - Pro/Lifetime: серверный вызов; если `needTopUp === true` → показать модалку «Buy 500 more photos — $9.99» с одной кнопкой, которая ведёт на `createExtraPackCheckout` → редирект в Stripe.
+- Счётчик в шапке студии: рендерим `«X / 3»` только если tier=free. Для pro/lifetime — ничего.
 
-**`src/lib/process-image.functions.ts`:**
-- Убрать поле `preUpscale` из валидатора (перестать принимать из клиента).
+### 8. Success/cancel возврат
+- Success URL: `/?checkout=success` — показать toast «Payment received». Webhook уже обновил entitlements до того, как юзер вернулся; на всякий случай `router.invalidate()` + refetch `getEntitlements`.
+- Cancel URL: `/?checkout=cancelled` — тихий toast.
 
-**`src/components/studio-workspace.tsx`:**
-- Удалить блок с `dims` probe и вычислением `preUpscale`.
-- Вызов упрощается до `removeBg({ data: { imageUrl: dataUrl } })`.
-- Комментарии про «Amazon ≥1000px / порог 1200» удалить — не актуально.
+## Технические детали
 
-## Ожидаемый результат
+- **Идемпотентность reservePhotos**: одна SQL функция `reserve_photos(n int)` в транзакции: читает строку `FOR UPDATE`, применяет приоритет extra_pack → месячный/lifetime, инкрементит счётчики, возвращает результат. Никаких race conditions при параллельных запросах.
+- **Смена месяца для Pro**: внутри `reserve_photos` если `pro_period != current_YYYY_MM` → обнулить `pro_used` и обновить период. Не полагаемся на cron.
+- **Extra Pack тратится ПЕРВЫМ**, чтобы юзер не оказался в ситуации «купил пак, а он не тратится, потому что месячный лимит ещё не выбран».
+- **Ноды скрытых лимитов** (200 / 500) — единственный источник правды: константы в SQL-функции `reserve_photos`. В клиенте эти числа не появляются вообще.
+- **Стек**: server functions под `_authenticated/` для checkout'ов, публичный TSS route для webhook. `supabaseAdmin` в webhook — импорт **внутри** handler'а.
+- **Секреты**: `STRIPE_WEBHOOK_SECRET` через `add_secret`. Stripe API key — управляется встроенной интеграцией, руками не трогаем.
 
-- Качество: сравнимо с whitebg.org на типичных Amazon-фото (обувь, одежда, флаконы) — закрытые «дыры», чистые края.
-- Скорость: 3 фото параллельно за ~4–6 сек (сейчас 10–12).
-- Себестоимость на 1 фото: $0.018 (было ~$0.001–0.041 в зависимости от пути) — предсказуемая.
-- Юнит-экономика: маржа 80%+ на всех платных тарифах.
+## Что удаляем/чистим
 
-## Что не входит в этот план (на потом, если понадобится)
+- `useTierLimits` внутренности (localStorage keys `pwbg_tier`, `pwbg_pro_period`, `pwbg_pro_used`, `pwbg_lifetime_used`) — на первом заходе после релиза удалить эти ключи из localStorage (одноразовая миграция в хуке).
+- Ручное проставление tier через клик на кнопку в pricing (если такое было) — теперь tier ставится **только** через webhook после оплаты.
 
-- Fast/Quality тумблер — не нужен, BRIA и так быстрая.
-- Генерация теней через AI (fal-ai/image-editing/lighting-shadows) — сейчас soft shadow через canvas достаточен, +$0.025/фото убьёт маржу.
-- Миграция на self-hosted BRIA на RTX 4090 (себестоимость $0.001) — имеет смысл только после 5000+ фото/день, сейчас преждевременно.
-- Замена/дополнение через FLUX Kontext для замены фона на «lifestyle» — это отдельный продукт (не PureWhite), не сейчас.
+## Что НЕ входит
+
+- Годовой Pro, промо-коды, скидки.
+- Возвраты через UI (пока — из Stripe Dashboard).
+- Email-уведомления «осталось N фото».
+- Автопополнение (auto top-up).
+- Изменение UI pricing-страницы, шапки для pro/lifetime, добавление «My plan».
