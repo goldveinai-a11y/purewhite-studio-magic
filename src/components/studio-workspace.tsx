@@ -124,21 +124,8 @@ export function StudioWorkspace({
           .then((b) => new File([b], job.name, { type: b.type || "image/png" }));
         const dataUrl = await downscaleForUpload(srcFile);
 
-        // Sources below 900px get AI-upscaled server-side before matting —
-        // the single biggest sharpness lever for thumbnail-grade inputs.
-        const dims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
-          const probe = new Image();
-          probe.onload = () => resolve({ w: probe.naturalWidth, h: probe.naturalHeight });
-          probe.onerror = () => reject(new Error("Failed to read image dimensions"));
-          probe.src = dataUrl;
-        });
-        // Amazon требует ≥1000px по длинной стороне. Порог 1200 = 20% запас:
-        // если исходник меньше — AI-апскейл до 2K перед rembg, иначе прямой путь.
-        const preUpscale = Math.max(dims.w, dims.h) < 1200;
-
-        // Rembg-only path: без silent retry и slow fallback — предсказуемое время.
         updateJob(job.id, { status: "removing", progress: 30 });
-        const matted = await removeBg({ data: { imageUrl: dataUrl, preUpscale } });
+        const matted = await removeBg({ data: { imageUrl: dataUrl } });
         updateJob(job.id, { status: "compositing", progress: 60 });
         let { blob, compliance } = await postProcess(matted.url, {
           amazonPreset: amazonRef.current,
