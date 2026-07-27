@@ -180,3 +180,27 @@ export const reservePhotos = createServerFn({ method: 'POST' })
     if (error) return { error: error.message };
     return result as ReserveResult;
   });
+
+export const createPortalSession = createServerFn({ method: 'POST' })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { returnUrl: string; environment: StripeEnv }) => data)
+  .handler(async ({ data, context }): Promise<{ url: string } | { error: string }> => {
+    try {
+      const { userId, supabase } = context;
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const stripe = createStripeClient(data.environment);
+      const customerId = await resolveOrCreateCustomer(stripe, {
+        email: user?.email ?? undefined,
+        userId,
+      });
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: data.returnUrl,
+      });
+      return { url: session.url };
+    } catch (error) {
+      return { error: getStripeErrorMessage(error) };
+    }
+  });
