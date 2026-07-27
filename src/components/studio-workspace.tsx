@@ -271,56 +271,73 @@ export function StudioWorkspace({
 
   return (
     <>
-      <div
-        className="group relative rounded-xl border-2 border-dashed border-primary/30 bg-accent/40 p-8 text-center transition-colors hover:border-primary/60 hover:bg-accent/70"
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => {
-          e.preventDefault();
-          void handleFiles(e.dataTransfer.files);
-        }}
-      >
-        <input
-          id="pwbg-file-input"
+      <input
+        id="pwbg-file-input"
         ref={inputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            void handleFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          void handleFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
+      {jobs.length === 0 ? (
         <div
-          className="mx-auto mb-4 grid h-14 w-14 cursor-pointer place-items-center rounded-2xl text-white"
-          style={{ background: "var(--gradient-primary)" }}
-          onClick={() => inputRef.current?.click()}
+          className="group relative rounded-xl border-2 border-dashed border-primary/30 bg-accent/40 p-8 text-center transition-colors hover:border-primary/60 hover:bg-accent/70"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            void handleFiles(e.dataTransfer.files);
+          }}
         >
-          <Upload className="h-6 w-6" />
-        </div>
-        <p className="text-base font-semibold text-foreground">
-          Drop up to 50 photos — JPEG, PNG, WEBP
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Up to 50 photos at once. Max 20MB per file.
-          {tier === "free" && (
-            <>
-              {" "}
-              {credits} credit{credits === 1 ? "" : "s"} remaining.
-            </>
-          )}
-        </p>
-        <div className="mt-5 flex flex-col items-center gap-2">
-          <Button
-            size="lg"
+          <div
+            className="mx-auto mb-4 grid h-14 w-14 cursor-pointer place-items-center rounded-2xl text-white"
+            style={{ background: "var(--gradient-primary)" }}
             onClick={() => inputRef.current?.click()}
-            className="w-full whitespace-normal rounded-full bg-primary px-6 font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
+          >
+            <Upload className="h-6 w-6" />
+          </div>
+          <p className="text-base font-semibold text-foreground">
+            Drop up to 50 photos — JPEG, PNG, WEBP
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Up to 50 photos at once. Max 20MB per file.
+            {tier === "free" && (
+              <>
+                {" "}
+                {credits} credit{credits === 1 ? "" : "s"} remaining.
+              </>
+            )}
+          </p>
+          <div className="mt-5 flex flex-col items-center gap-2">
+            <Button
+              size="lg"
+              onClick={() => inputRef.current?.click()}
+              className="w-full whitespace-normal rounded-xl bg-primary px-6 py-3 text-sm font-semibold leading-snug text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95 sm:text-base"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Product Photos (Batch Supported)
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-primary/30 bg-accent/30 px-4 py-3">
+          <p className="text-sm text-muted-foreground">
+            {jobs.length} photo{jobs.length === 1 ? "" : "s"} added
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => inputRef.current?.click()}
+            className="rounded-full"
           >
             <Upload className="mr-2 h-4 w-4" />
-            Upload Product Photos (Batch Supported)
+            Add more
           </Button>
         </div>
-      </div>
+      )}
 
       {jobs.length > 0 && (
         <div className="mt-6 space-y-5">
