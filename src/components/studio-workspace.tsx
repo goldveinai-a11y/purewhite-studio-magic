@@ -113,6 +113,32 @@ export function StudioWorkspace({
     shadowRef.current = softShadow;
   }, [softShadow]);
 
+  // Every job holds 1-2 object URLs (original preview + processed result).
+  // React state alone never frees these — the browser keeps the underlying
+  // blob in memory until URL.revokeObjectURL() is called explicitly. On a
+  // long session with several 50-photo batches this silently accumulates
+  // hundreds of live blobs. This ref tracks every URL we hand out so it can
+  // always be found and released, regardless of where in the job lifecycle
+  // it currently lives (queue, done, replaced by a retry).
+  const objectUrlsRef = useRef<Set<string>>(new Set());
+  const trackUrl = useCallback((url: string) => {
+    objectUrlsRef.current.add(url);
+    return url;
+  }, []);
+  const releaseUrl = useCallback((url: string | undefined) => {
+    if (!url) return;
+    URL.revokeObjectURL(url);
+    objectUrlsRef.current.delete(url);
+  }, []);
+  // Catch-all for navigation away from the studio mid-session: whatever
+  // wasn't individually released above still gets freed on unmount.
+  useEffect(() => {
+    return () => {
+      for (const url of objectUrlsRef.current) URL.revokeObjectURL(url);
+      objectUrlsRef.current.clear();
+    };
+  }, []);
+
   const updateJob = useCallback((id: string, patch: Partial<Job>) => {
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   }, []);
@@ -134,7 +160,11 @@ export function StudioWorkspace({
           softShadow: shadowRef.current,
         });
 
-        const resultUrl = URL.createObjectURL(blob);
+        // On a manual retry, `job.resultUrl` still holds the PREVIOUS
+        // attempt's blob URL (retry() spreads the old job object) — free
+        // it before minting a new one so retries don't leak.
+        releaseUrl(job.resultUrl);
+        const resultUrl = trackUrl(URL.createObjectURL(blob));
         updateJob(job.id, {
           status: "done",
           progress: 100,
@@ -151,7 +181,7 @@ export function StudioWorkspace({
         toast.error(`${job.name}: ${msg}`);
       }
     },
-    [removeBg, updateJob, setCredits],
+    [releaseUrl, removeBg, trackUrl, updateJob, setCredits],
   );
 
   const handleFiles = useCallback(
@@ -221,7 +251,7 @@ export function StudioWorkspace({
       const newJobs: Job[] = files.map((f) => ({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         name: f.name,
-        originalUrl: URL.createObjectURL(f),
+        originalUrl: trackUrl(URL.createObjectURL(f)),
         status: "queued",
         progress: 5,
       }));
@@ -242,7 +272,7 @@ export function StudioWorkspace({
       }
       await Promise.all(workers);
     },
-    [credits, onPaywall, onTopUp, reserve, reserveServerPhotos, runJob, setCredits, tier],
+    [credits, onPaywall, onTopUp, reserve, reserveServerPhotos, runJob, setCredits, tier, trackUrl],
   );
 
   const doneJobs = jobs.filter((j) => j.status === "done" && j.resultBlob);
@@ -271,7 +301,14 @@ export function StudioWorkspace({
   };
 
   const remove = (id: string) => {
-    setJobs((prev) => prev.filter((j) => j.id !== id));
+    setJobs((prev) => {
+      const job = prev.find((j) => j.id === id);
+      if (job) {
+        releaseUrl(job.originalUrl);
+        releaseUrl(job.resultUrl);
+      }
+      return prev.filter((j) => j.id !== id);
+    });
   };
 
   const retry = useCallback(
