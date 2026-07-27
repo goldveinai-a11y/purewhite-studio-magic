@@ -29,11 +29,11 @@ function CheckoutPage() {
   const planCopy = {
     pro: {
       title: "PureWhite BG Pro",
-      subtitle: "200 Amazon-ready photos each month",
+      subtitle: "Ship more listings. Grow your sales.",
     },
     lifetime: {
       title: "PureWhite BG Lifetime",
-      subtitle: "500 lifetime photos for one workspace",
+      subtitle: "Pay once. Scale your sales forever.",
     },
     extra: {
       title: "500 Photo Top-Up",
