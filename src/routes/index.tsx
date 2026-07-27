@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { usePersistedCredits } from "@/hooks/use-credits";
-import { useTierLimits, type Tier } from "@/hooks/use-tier-limits";
 import {
   Upload,
   Sparkles,
@@ -96,7 +95,7 @@ export const Route = createFileRoute("/")({
           applicationCategory: "DesignApplication",
           offers: {
             "@type": "Offer",
-            price: "6.99",
+            price: "9.99",
             priceCurrency: "USD",
           },
           description:
@@ -146,14 +145,6 @@ export const Route = createFileRoute("/")({
                 text: "Yes. All uploaded assets are encrypted in transit and at rest, isolated to your session, and auto-deleted within 24 hours of processing. We never train models on your data.",
               },
             },
-            {
-              "@type": "Question",
-              name: "Do you keep or resell my product photos, and can my plan change without notice?",
-              acceptedAnswer: {
-                "@type": "Answer",
-                text: "No, and no. Your original uploads and processed images are yours alone - we never reuse, resell, or repurpose them. We also don't move features behind a paywall or change your plan's terms after you've paid, unlike some tools in this space.",
-              },
-            },
           ],
         }),
       },
@@ -166,20 +157,9 @@ function LandingPage() {
   const [amazonPreset, setAmazonPreset] = useState(true);
   const [softShadow, setSoftShadow] = useState(true);
   const [paywallOpen, setPaywallOpen] = useState(false);
-  const [topUpOpen, setTopUpOpen] = useState(false);
   const [singleDownloads, setSingleDownloads] = useState(0);
   const [amazonGuideOpen, setAmazonGuideOpen] = useState(false);
   const { credits, setCredits } = usePersistedCredits();
-  const { setTier } = useTierLimits();
-
-  const handleUpgrade = (tier: Tier) => {
-    // No real payment/subscription backend yet - this just records which
-    // plan button was clicked so the hidden Pro/Lifetime allowance (see
-    // use-tier-limits.ts) has something to key off. Replace with a
-    // server-verified subscription check once Stripe + accounts land.
-    setTier(tier);
-    setPaywallOpen(true);
-  };
 
   const handleSingleDownload = () => {
     const next = singleDownloads + 1;
@@ -213,18 +193,16 @@ function LandingPage() {
         credits={credits}
         setCredits={setCredits}
         onPaywall={() => setPaywallOpen(true)}
-        onTopUp={() => setTopUpOpen(true)}
       />
       <TrustBar />
       <ValueProps />
       <HowItWorks />
       <UseCases />
       <ComplianceTable />
-      <Pricing onUpgrade={handleUpgrade} />
+      <Pricing onUpgrade={() => setPaywallOpen(true)} />
       <FAQ />
       <Footer onOpenAmazonGuide={() => setAmazonGuideOpen(true)} />
       <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
-      <TopUpDialog open={topUpOpen} onOpenChange={setTopUpOpen} />
       <AmazonGuideDialog open={amazonGuideOpen} onOpenChange={setAmazonGuideOpen} />
     </div>
   );
@@ -296,7 +274,6 @@ function Hero({
   credits,
   setCredits,
   onPaywall,
-  onTopUp,
 }: {
   sliderPos: number;
   setSliderPos: (n: number) => void;
@@ -307,7 +284,6 @@ function Hero({
   credits: number;
   setCredits: (updater: (prev: number) => number) => void;
   onPaywall: () => void;
-  onTopUp?: () => void;
 }) {
   return (
     <section
@@ -351,7 +327,6 @@ function Hero({
                     credits={credits}
                     setCredits={setCredits}
                     onPaywall={onPaywall}
-                    onTopUp={onTopUp}
                   />
                 </div>
                 <div className="flex min-w-0 flex-col gap-4">
@@ -439,7 +414,7 @@ function Hero({
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                     <p className="mt-2 text-center text-[11px] text-muted-foreground">
-                      Need more? $6.99/mo &middot; or $29 once, forever
+                      Need more? $9.99/mo &middot; or $29 once, forever
                     </p>
                   </div>
                 </div>
@@ -1093,7 +1068,7 @@ function ComplianceTable() {
   );
 }
 
-function Pricing({ onUpgrade }: { onUpgrade: (tier: Tier) => void }) {
+function Pricing({ onUpgrade }: { onUpgrade: () => void }) {
   const tiers = [
     {
       name: "Free Trial",
@@ -1109,38 +1084,35 @@ function Pricing({ onUpgrade }: { onUpgrade: (tier: Tier) => void }) {
       cta: "Start Free (3 Credits)",
       featured: false,
       disabled: false,
-      tierKey: "free" as Tier,
     },
     {
       name: "Pro Seller Pass",
-      price: "$6.99",
+      price: "$9.99",
       cadence: "/month",
       features: [
-        "Unlimited Background Removals",
+        "1,000 Photos / Month",
         "50-Photo Batch Upload & ZIP Export",
         "Everything in Free (Shadow, Amazon Preset)",
         "Priority Processing Speed",
         "Commercial License",
-        "Cheaper than a single freelancer photo",
+        "Need more? Top-up 500 photos for $9",
       ],
-      cta: "Upgrade to Pro ($6.99/mo)",
+      cta: "Upgrade to Pro ($9.99/mo)",
       featured: true,
       disabled: false,
-      tierKey: "pro" as Tier,
     },
     {
       name: "Lifetime Credit Pass",
       price: "$29",
       cadence: "one-time",
       features: [
-        "One-Time Payment, No Subscription — Ever",
+        "500 Credits (No Subscription)",
         "All Pro Features Included",
         "ZIP Export Included",
       ],
       cta: "Buy Lifetime Pass",
       featured: false,
       disabled: false,
-      tierKey: "lifetime" as Tier,
     },
   ];
   return (
@@ -1191,11 +1163,7 @@ function Pricing({ onUpgrade }: { onUpgrade: (tier: Tier) => void }) {
                 ))}
               </ul>
               <Button
-                onClick={
-                  t.featured || t.name.startsWith("Lifetime")
-                    ? () => onUpgrade(t.tierKey)
-                    : undefined
-                }
+                onClick={t.featured || t.name.startsWith("Lifetime") ? onUpgrade : undefined}
                 disabled={t.disabled}
                 variant={t.featured ? "default" : "outline"}
                 className={`mt-7 w-full rounded-lg font-semibold ${
@@ -1229,7 +1197,7 @@ function PaywallDialog({
           style={{ background: "var(--gradient-primary)" }}
         >
           <Badge className="mb-3 rounded-full bg-white/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-white/20">
-            Save 30% Today — Only $6.99/mo
+            Save 50% Today — Only $9.99/mo
           </Badge>
           <DialogHeader className="text-left">
             <DialogTitle className="font-display text-2xl font-bold text-white">
@@ -1267,53 +1235,6 @@ function PaywallDialog({
   );
 }
 
-function TopUpDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (b: boolean) => void;
-}) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md overflow-hidden rounded-2xl p-0">
-        <div
-          className="px-7 pb-5 pt-7 text-white"
-          style={{ background: "var(--gradient-primary)" }}
-        >
-          <DialogHeader className="text-left">
-            <DialogTitle className="font-display text-2xl font-bold text-white">
-              You've used your current processing allowance
-            </DialogTitle>
-            <DialogDescription className="text-white/80">
-              Top up to keep going — no need to wait for your next cycle.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
-        <div className="space-y-3 px-7 py-6">
-          <div className="flex items-start gap-2 text-sm">
-            <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-            <span>500 more credits, instantly available</span>
-          </div>
-          <div className="flex items-start gap-2 text-sm">
-            <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-            <span>Same quality, same batch tools</span>
-          </div>
-          <Button
-            size="lg"
-            className="mt-4 w-full rounded-lg bg-primary py-6 text-base font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
-          >
-            Top Up 500 Credits — $9.99
-          </Button>
-          <p className="text-center text-[11px] text-muted-foreground">
-            Secure checkout · One-time charge
-          </p>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function FAQ() {
   const items = [
     {
@@ -1331,10 +1252,6 @@ function FAQ() {
     {
       q: "Is my product photography kept private?",
       a: "Yes. All uploaded assets are encrypted in transit and at rest, isolated to your session, and auto-deleted within 24 hours of processing. We never train models on your data.",
-    },
-    {
-      q: "Do you keep or resell my product photos, and can my plan change without notice?",
-      a: "No, and no. Your original uploads and processed images are yours alone — we never reuse, resell, or repurpose them. We also don't move features behind a paywall or change your plan's terms after you've paid, unlike some tools in this space.",
     },
   ];
   return (
