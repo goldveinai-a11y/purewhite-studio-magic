@@ -87,7 +87,6 @@ async function createCheckout(
       ui_mode: 'embedded_page',
       return_url: params.returnUrl,
       customer: customerId,
-      ...(customerId && isRecurring && { customer_update: { name: 'auto', address: 'auto' } }),
       ...(!isRecurring && { payment_intent_data: { description } }),
       metadata: { userId, product: params.productKey },
       ...(isRecurring && {
