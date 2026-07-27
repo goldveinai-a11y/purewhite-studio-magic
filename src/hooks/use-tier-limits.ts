@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { getEntitlements } from "@/lib/payments.functions";
 
 // Internal processing allowances for paid tiers. These numbers are
 // deliberately NOT shown anywhere in the UI/marketing copy - Pro is sold as
@@ -37,6 +39,30 @@ export function useTierLimits() {
 
   useEffect(() => {
     setTierState(readTier());
+    let cancelled = false;
+    const sync = async () => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) return;
+        const res = await getEntitlements();
+        if (cancelled) return;
+        if ("entitlements" in res) {
+          const serverTier = res.entitlements.tier;
+          setTierState(serverTier);
+          try {
+            localStorage.setItem(TIER_KEY, serverTier);
+          } catch {
+            // ignore
+          }
+        }
+      } catch {
+        // network / auth issue — keep local guess
+      }
+    };
+    void sync();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // NOTE: there is no real payment/subscription backend yet - this just
