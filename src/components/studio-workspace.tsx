@@ -90,7 +90,7 @@ export function StudioWorkspace({
   onTopUp?: () => void;
 }) {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const { reserve } = useTierLimits();
+  const { reserve, tier } = useTierLimits();
   // Track the selected job by STABLE id, never by array index: new batches
   // are prepended to `jobs` and rows can be removed, both of which shift
   // indices. Index-based selection made the preview (and its compliance
@@ -302,8 +302,13 @@ export function StudioWorkspace({
           Drop up to 50 photos — JPEG, PNG, WEBP
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Up to 50 photos at once. Max 20MB per file. {credits} credit
-          {credits === 1 ? "" : "s"} remaining.
+          Up to 50 photos at once. Max 20MB per file.
+          {tier === "free" && (
+            <>
+              {" "}
+              {credits} credit{credits === 1 ? "" : "s"} remaining.
+            </>
+          )}
         </p>
         <div className="mt-5 flex flex-col items-center gap-2">
           <Button
