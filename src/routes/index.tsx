@@ -397,8 +397,22 @@ function Hero({
                     onCheckedChange={setSoftShadow}
                   />
                   {tier === "free" && (
-                    <p className="text-[11px] text-muted-foreground">
-                      Free tier: {credits}/3 credits · Batches over 3 photos require Pro
+                    <p
+                      className={`text-[11px] ${
+                        credits <= 0
+                          ? "font-semibold text-red-600"
+                          : credits === 1
+                            ? "font-semibold text-amber-600"
+                            : "text-muted-foreground"
+                      }`}
+                    >
+                      {credits <= 0
+                        ? "Free photos used — upgrade to continue"
+                        : credits === 1
+                          ? "⚠ Last free photo — upgrade to keep going"
+                          : credits === 3
+                            ? "3 free photos — no card needed"
+                            : `${credits} free photos left`}
                     </p>
                   )}
       {tier !== "free" && (

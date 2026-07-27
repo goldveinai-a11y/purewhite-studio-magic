@@ -15,6 +15,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { removeBackground } from "@/lib/process-image.functions";
+import { reservePhotos } from "@/lib/payments.functions";
 import { fileToDataUrl, postProcess, type ComplianceResult } from "@/lib/canvas-processing";
 import { useTierLimits } from "@/hooks/use-tier-limits";
 
@@ -99,6 +100,7 @@ export function StudioWorkspace({
   const [activeId, setActiveId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const removeBg = useServerFn(removeBackground);
+  const reserveServerPhotos = useServerFn(reservePhotos);
 
   // Refs so in-flight batch jobs always read the CURRENT toggle values,
   // even if the user flips them mid-batch.
@@ -186,9 +188,28 @@ export function StudioWorkspace({
         return;
       }
 
-      // Hidden Pro/Lifetime processing allowance - never surfaced in copy.
-      // Free tier is unaffected (reserve() is a no-op passthrough for it).
-      if (!reserve(files.length)) {
+      // Paid tiers: real server-side quota check (Supabase RPC, atomic,
+      // row-locked) — this is what actually stops a paying customer from
+      // resetting their own usage counter via clearing localStorage. Free
+      // tier keeps its existing local-only gate unchanged (reserve() is a
+      // documented no-op passthrough for it) so the no-signup trial flow
+      // is completely unaffected by this change.
+      if (tier !== "free") {
+        try {
+          const result = await reserveServerPhotos({ data: { count: files.length } });
+          const ok = "ok" in result && result.ok === true;
+          if (!ok) {
+            onTopUp?.();
+            return;
+          }
+        } catch {
+          // Transient network/session issue talking to the quota check -
+          // never silently hang a paying customer's upload. Let them retry
+          // rather than eat the click with no feedback.
+          toast.error("Couldn't verify your account right now — please try again.");
+          return;
+        }
+      } else if (!reserve(files.length)) {
         onTopUp?.();
         return;
       }
@@ -221,7 +242,7 @@ export function StudioWorkspace({
       }
       await Promise.all(workers);
     },
-    [credits, onPaywall, onTopUp, reserve, runJob, setCredits],
+    [credits, onPaywall, onTopUp, reserve, reserveServerPhotos, runJob, setCredits, tier],
   );
 
   const doneJobs = jobs.filter((j) => j.status === "done" && j.resultBlob);
@@ -307,7 +328,11 @@ export function StudioWorkspace({
             {tier === "free" && (
               <>
                 {" "}
-                {credits} credit{credits === 1 ? "" : "s"} remaining.
+                {credits <= 0
+                  ? "Free photos used — upgrade to continue."
+                  : credits === 1
+                    ? "⚠ Last free photo — upgrade to keep going."
+                    : `${credits} free photos left.`}
               </>
             )}
           </p>
