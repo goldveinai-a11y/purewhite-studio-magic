@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { removeBackground } from "@/lib/process-image.functions";
 import { fileToDataUrl, postProcess, type ComplianceResult } from "@/lib/canvas-processing";
+import { useTierLimits } from "@/hooks/use-tier-limits";
 
 // Downscale big source photos client-side before sending to the matting
 // backend. Bria/Birefnet operate at ~1024–2048px internally, so a 4000px
@@ -79,14 +80,17 @@ export function StudioWorkspace({
   credits,
   setCredits,
   onPaywall,
+  onTopUp,
 }: {
   amazonPreset: boolean;
   softShadow: boolean;
   credits: number;
   setCredits: (updater: (prev: number) => number) => void;
   onPaywall: () => void;
+  onTopUp?: () => void;
 }) {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const { reserve } = useTierLimits();
   // Track the selected job by STABLE id, never by array index: new batches
   // are prepended to `jobs` and rows can be removed, both of which shift
   // indices. Index-based selection made the preview (and its compliance
@@ -195,6 +199,13 @@ export function StudioWorkspace({
         return;
       }
 
+      // Hidden Pro/Lifetime processing allowance - never surfaced in copy.
+      // Free tier is unaffected (reserve() is a no-op passthrough for it).
+      if (!reserve(files.length)) {
+        onTopUp?.();
+        return;
+      }
+
       // Reserve credits for the WHOLE batch atomically, before jobs start.
       // Failed jobs refund inside runJob.
       setCredits((c) => Math.max(0, c - files.length));
@@ -223,7 +234,7 @@ export function StudioWorkspace({
       }
       await Promise.all(workers);
     },
-    [credits, onPaywall, runJob, setCredits],
+    [credits, onPaywall, onTopUp, reserve, runJob, setCredits],
   );
 
   const doneJobs = jobs.filter((j) => j.status === "done" && j.resultBlob);
