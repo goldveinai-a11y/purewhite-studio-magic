@@ -10,17 +10,11 @@ export const removeBackground = createServerFn({ method: "POST" })
     ) {
       throw new Error("imageUrl (string) is required");
     }
-    const { imageUrl, preUpscale } = input as {
-      imageUrl: string;
-      preUpscale?: boolean;
-    };
+    const { imageUrl } = input as { imageUrl: string };
     if (imageUrl.length > 15_000_000) {
       throw new Error("Image payload too large (max ~11MB base64)");
     }
-    return {
-      imageUrl,
-      preUpscale: preUpscale === true,
-    };
+    return { imageUrl };
   })
   .handler(async ({ data }) => {
     const key = process.env.FALAI_KEY;
