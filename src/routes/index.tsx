@@ -1182,7 +1182,7 @@ function Pricing({
       price: "$6.99",
       cadence: "/month",
       features: [
-        "Unlimited Background Removals",
+        "Suppression-Proof Listings",
         "50-Photo Batch Upload & ZIP Export",
         "Everything in Free (Shadow, Amazon Preset)",
         "Priority Processing Speed",
