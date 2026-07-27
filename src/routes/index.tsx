@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { usePersistedCredits } from "@/hooks/use-credits";
-import { useTierLimits, type Tier } from "@/hooks/use-tier-limits";
+import { type Tier } from "@/hooks/use-tier-limits";
 import {
   Upload,
   Sparkles,
@@ -170,15 +170,12 @@ function LandingPage() {
   const [singleDownloads, setSingleDownloads] = useState(0);
   const [amazonGuideOpen, setAmazonGuideOpen] = useState(false);
   const { credits, setCredits } = usePersistedCredits();
-  const { setTier } = useTierLimits();
+  const navigate = useNavigate();
 
   const handleUpgrade = (tier: Tier) => {
-    // No real payment/subscription backend yet - this just records which
-    // plan button was clicked so the hidden Pro/Lifetime allowance (see
-    // use-tier-limits.ts) has something to key off. Replace with a
-    // server-verified subscription check once Stripe + accounts land.
-    setTier(tier);
-    setPaywallOpen(true);
+    if (tier === "free") return;
+    const plan = tier === "pro" ? "pro" : "lifetime";
+    void navigate({ to: `/checkout/${plan}` as string });
   };
 
   const handleSingleDownload = () => {
@@ -223,8 +220,16 @@ function LandingPage() {
       <Pricing onUpgrade={handleUpgrade} />
       <FAQ />
       <Footer onOpenAmazonGuide={() => setAmazonGuideOpen(true)} />
-      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
-      <TopUpDialog open={topUpOpen} onOpenChange={setTopUpOpen} />
+      <PaywallDialog
+        open={paywallOpen}
+        onOpenChange={setPaywallOpen}
+        onCheckout={() => navigate({ to: "/checkout/pro" as string })}
+      />
+      <TopUpDialog
+        open={topUpOpen}
+        onOpenChange={setTopUpOpen}
+        onCheckout={() => navigate({ to: "/checkout/extra" as string })}
+      />
       <AmazonGuideDialog open={amazonGuideOpen} onOpenChange={setAmazonGuideOpen} />
     </div>
   );
