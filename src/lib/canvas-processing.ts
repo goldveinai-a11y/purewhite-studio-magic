@@ -450,15 +450,13 @@ function removeDisconnectedDebris(
   // Wider erosion so thicker splash-to-product bridges snap. Laces/straps
   // at 2K resolution are typically 20-40px wide and survive this radius;
   // they reattach during regrowth.
-  // Bumped from 0.012/6 - Bria (premium model, now the free-tier default)
-  // produces thicker, higher-confidence mask bridges than rembg did, so
-  // splash/mud/debris patches that used to snap at the old radius were
-  // surviving as part of the same connected blob as the product. This is
-  // a real tradeoff: push it much further and 20-40px straps/laces start
-  // eroding away too. If a wide splash bridge still survives at this
-  // radius, the fix needs a color-based cut, not just a bigger erosion -
-  // flag it back if this specific case persists after retest.
-  const erodeR = Math.max(8, Math.round(Math.min(width, height) * 0.016));
+  // REVERTED (2026-07-27): a wider radius (0.016/8) was tried to break
+  // thicker Bria mask bridges, but it ate into real edges instead - visible
+  // as jagged bites out of shoe soles and dress hems in test renders. Back
+  // to the known-good 0.012/6. The mud-splash-stays-attached case needs a
+  // color-based cut, not a bigger erosion - do not re-attempt this radius
+  // bump without a real before/after render to check first.
+  const erodeR = Math.max(6, Math.round(Math.min(width, height) * 0.012));
   const eroded = boxErode(fg, width, height, erodeR);
   const coreLabels = new Int32Array(total);
   const coreAreas: number[] = [0];
