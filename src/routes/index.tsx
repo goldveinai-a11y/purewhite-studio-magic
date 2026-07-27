@@ -1222,9 +1222,11 @@ function Pricing({ onUpgrade }: { onUpgrade: (tier: Tier) => void }) {
 function PaywallDialog({
   open,
   onOpenChange,
+  onCheckout,
 }: {
   open: boolean;
   onOpenChange: (b: boolean) => void;
+  onCheckout: () => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1258,6 +1260,7 @@ function PaywallDialog({
           ))}
           <Button
             size="lg"
+            onClick={onCheckout}
             className="mt-4 w-full rounded-lg bg-primary py-6 text-base font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
           >
             <Lock className="mr-2 h-4 w-4" />
@@ -1275,9 +1278,11 @@ function PaywallDialog({
 function TopUpDialog({
   open,
   onOpenChange,
+  onCheckout,
 }: {
   open: boolean;
   onOpenChange: (b: boolean) => void;
+  onCheckout: () => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1306,6 +1311,7 @@ function TopUpDialog({
           </div>
           <Button
             size="lg"
+            onClick={onCheckout}
             className="mt-4 w-full rounded-lg bg-primary py-6 text-base font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
           >
             Top Up 500 Credits — $9.99
