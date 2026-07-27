@@ -51,6 +51,11 @@ export function useTierLimits() {
           setTierState(serverTier);
           try {
             localStorage.setItem(TIER_KEY, serverTier);
+            // Paid tiers bypass the free 3-credit gate. 999 is the sentinel
+            // the UI already treats as "unlimited" for batch-size checks.
+            if (serverTier === "pro" || serverTier === "lifetime") {
+              localStorage.setItem("pwbg_credits_v1", "999");
+            }
           } catch {
             // ignore
           }
