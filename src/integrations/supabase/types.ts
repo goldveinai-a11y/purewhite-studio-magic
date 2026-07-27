@@ -14,13 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      entitlements: {
+        Row: {
+          created_at: string
+          extra_pack_balance: number
+          lifetime_used: number
+          pro_period: string | null
+          pro_used: number
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          tier: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          extra_pack_balance?: number
+          lifetime_used?: number
+          pro_period?: string | null
+          pro_used?: number
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          extra_pack_balance?: number
+          lifetime_used?: number
+          pro_period?: string | null
+          pro_used?: number
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          tier?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      stripe_events_processed: {
+        Row: {
+          event_id: string
+          processed_at: string
+        }
+        Insert: {
+          event_id: string
+          processed_at?: string
+        }
+        Update: {
+          event_id?: string
+          processed_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      reserve_photos: { Args: { n: number }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
