@@ -476,7 +476,7 @@ function Hero({
                     <ul className="space-y-2 text-sm text-foreground">
                       <li className="flex items-start gap-2">
                         <TrendingUp className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
-                        <span>Clean, compliant photos lift purchase conversion up to 37%</span>
+                        <span>Clean, compliant photos lift purchase conversion up to 94%</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <TrendingDown className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
