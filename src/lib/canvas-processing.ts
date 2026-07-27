@@ -859,6 +859,12 @@ export async function postProcess(
   // any leftover disconnected specks. Erosion is capped so thin real
   // structures (laces, straps, hanger hooks) reattach on regrowth.
   removeDisconnectedDebris(sctx, src.width, src.height, false);
+  // Fix rim color-fringing and interior translucency ("ghost" wash-through on
+  // complex textures - suede, glossy highlights, laces) left by the matting
+  // model. Both operate on an eroded "safe core" so edge softness and
+  // legitimate shading/reflections are untouched.
+  decontaminateEdgeColors(sctx, src.width, src.height);
+  solidifyInteriorAlpha(sctx, src.width, src.height);
   const bounds = findBounds(sctx.getImageData(0, 0, src.width, src.height));
 
   const size = opts.amazonPreset
