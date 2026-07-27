@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { usePersistedCredits } from "@/hooks/use-credits";
-import { type Tier } from "@/hooks/use-tier-limits";
+import { useTierLimits, type Tier } from "@/hooks/use-tier-limits";
 import {
   Upload,
   Sparkles,
@@ -314,6 +314,8 @@ function Hero({
   onPaywall: () => void;
   onTopUp?: () => void;
 }) {
+  const { tier } = useTierLimits();
+
   return (
     <section
       className="relative overflow-hidden"
@@ -381,9 +383,11 @@ function Hero({
                     checked={softShadow}
                     onCheckedChange={setSoftShadow}
                   />
-                  <p className="text-[11px] text-muted-foreground">
-                    Free tier: {credits}/3 credits · Batches over 3 photos require Pro
-                  </p>
+                  {tier === "free" && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Free tier: {credits}/3 credits · Batches over 3 photos require Pro
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="grid gap-6 md:grid-cols-[1.4fr_1fr]">
