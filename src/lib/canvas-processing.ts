@@ -839,10 +839,18 @@ function checkAmazonCompliance(
   };
 }
 
+export type QualitySignal = {
+  // Rough proxy for "how much did we have to repair" - used by the caller
+  // to decide whether the cheap matting model's output was good enough, or
+  // whether this specific photo should be re-run through the premium model.
+  holeAreaRatio: number;
+  debrisRemoved: boolean;
+};
+
 export async function postProcess(
   transparentPngUrl: string,
   opts: PostProcessOptions,
-): Promise<{ blob: Blob; compliance: ComplianceResult }> {
+): Promise<{ blob: Blob; compliance: ComplianceResult; quality: QualitySignal }> {
   const img = await loadImage(transparentPngUrl);
 
   // Read source to compute tight bounds of the isolated subject
@@ -854,11 +862,24 @@ export async function postProcess(
   sctx.drawImage(img, 0, 0);
   // Minimal, non-destructive post-processing: cut the background, keep the
   // product itself intact, then only apply safe canvas finishing.
+  const totalPixelsBefore = src.width * src.height;
+  const holeAreaBefore = countNearZeroAlpha(sctx, src.width, src.height);
   fillInteriorHoles(sctx, src.width, src.height);
+  const holeAreaAfter = countNearZeroAlpha(sctx, src.width, src.height);
+  const holesFilled = Math.max(0, holeAreaBefore - holeAreaAfter);
   // Snap thin filaments between product and splashes/dust/mist, then drop
   // any leftover disconnected specks. Erosion is capped so thin real
   // structures (laces, straps, hanger hooks) reattach on regrowth.
+  const areaBeforeDebris = countOpaque(sctx, src.width, src.height);
   removeDisconnectedDebris(sctx, src.width, src.height, false);
+  const areaAfterDebris = countOpaque(sctx, src.width, src.height);
+  const debrisRemoved = areaBeforeDebris - areaAfterDebris > 0;
+  // Fix rim color-fringing and interior translucency ("ghost" wash-through
+  // on complex textures - suede, glossy highlights, laces) left by the
+  // matting model. Both operate on an eroded "safe core" so edge softness
+  // and legitimate shading/reflections are untouched.
+  decontaminateEdgeColors(sctx, src.width, src.height);
+  solidifyInteriorAlpha(sctx, src.width, src.height);
   const bounds = findBounds(sctx.getImageData(0, 0, src.width, src.height));
 
   const size = opts.amazonPreset
@@ -932,7 +953,39 @@ export async function postProcess(
       "image/png",
     );
   });
-  return { blob, compliance };
+  const quality: QualitySignal = {
+    holeAreaRatio: totalPixelsBefore > 0 ? holesFilled / totalPixelsBefore : 0,
+    debrisRemoved,
+  };
+  return { blob, compliance, quality };
+}
+
+/** Count pixels with alpha at/near zero (candidate background/hole pixels). */
+function countNearZeroAlpha(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): number {
+  const { data } = ctx.getImageData(0, 0, width, height);
+  let n = 0;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] <= 20) n++;
+  }
+  return n;
+}
+
+/** Count pixels with alpha above the foreground threshold. */
+function countOpaque(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): number {
+  const { data } = ctx.getImageData(0, 0, width, height);
+  let n = 0;
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] > 20) n++;
+  }
+  return n;
 }
 
 export async function fileToDataUrl(file: File): Promise<string> {

@@ -3,21 +3,39 @@ type FalResult = {
   images?: Array<{ url?: string; content_type?: string }>;
 };
 
+export type ModelTier = "premium" | "economy";
+
 export type RemoveBackgroundInput = {
   imageUrl: string;
   preUpscale: boolean;
+  modelTier: ModelTier;
 };
 
-export async function removeBackgroundWithRembg({
+// Free tier always gets `premium` (Bria) - it's the first impression that
+// has to sell the product, and volume is capped at 3 credits so the cost
+// difference is a few cents total. Pro/Lifetime default to `economy`
+// (rembg) since most real-world catalog photos are already simple; the
+// caller (studio-workspace) re-runs a single photo through `premium` only
+// when the economy result's quality signal looks bad (see
+// canvas-processing.ts QualitySignal + the escalation logic in runJob).
+export async function removeBackground({
   apiKey,
   imageUrl,
   preUpscale,
+  modelTier,
 }: RemoveBackgroundInput & { apiKey: string }) {
   let sourceUrl = imageUrl;
 
-  // Small sources get a pre-upscale before matting so thumbnail-grade inputs
-  // keep sharper product edges. If it fails, continue with the original.
-  if (preUpscale) {
+  // Pre-upscale is an AI (generative) upscaler, not a plain pixel resize -
+  // on very low-quality sources it can subtly re-imagine texture/shape
+  // instead of just sharpening. That's an unacceptable risk for an
+  // e-commerce tool (the customer receives a different product than shown).
+  // Restricting it to `economy` tier only, on genuinely tiny sources,
+  // shrinks that risk surface. Premium (Bria) requests skip it entirely -
+  // Bria handles small sources better on its own and this is exactly the
+  // path free-tier demo photos take, where a hallucinated result is most
+  // damaging to trust.
+  if (preUpscale && modelTier === "economy") {
     const upRes = await fetch("https://fal.run/fal-ai/recraft/upscale/crisp", {
       method: "POST",
       headers: {
@@ -33,23 +51,38 @@ export async function removeBackgroundWithRembg({
     }
   }
 
-  const res = await fetch("https://fal.run/fal-ai/imageutils/rembg", {
+  const endpoint =
+    modelTier === "premium"
+      ? "https://fal.run/fal-ai/bria/background/remove"
+      : "https://fal.run/fal-ai/imageutils/rembg";
+
+  const body: Record<string, unknown> = { image_url: sourceUrl };
+  if (modelTier === "premium") {
+    // Bria's own doc'd param for output resolution - keeps quality high
+    // without needing the recraft pre-upscale step at all.
+    body.operating_resolution = "2048x2048";
+  }
+
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       Authorization: `Key ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ image_url: sourceUrl }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`fal.ai rembg failed: ${res.status} ${text.slice(0, 300)}`);
+    throw new Error(`fal.ai ${modelTier} matting failed: ${res.status} ${text.slice(0, 300)}`);
   }
 
   const json = (await res.json()) as FalResult;
   const outUrl = json.image?.url ?? json.images?.[0]?.url;
-  if (!outUrl) throw new Error("fal.ai rembg returned no image URL");
+  if (!outUrl) throw new Error("fal.ai matting returned no image URL");
 
   return { url: outUrl, sourceUrl };
 }
+
+// Backward-compatible alias - some callers may still import the old name.
+export const removeBackgroundWithRembg = removeBackground;

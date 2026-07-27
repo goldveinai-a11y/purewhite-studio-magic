@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { removeBackgroundWithRembg, type RemoveBackgroundInput } from "./process-image.server";
+import { removeBackground as removeBackgroundImpl, type RemoveBackgroundInput } from "./process-image.server";
 
 export const removeBackground = createServerFn({ method: "POST" })
   .inputValidator((input: unknown): RemoveBackgroundInput => {
@@ -10,9 +10,10 @@ export const removeBackground = createServerFn({ method: "POST" })
     ) {
       throw new Error("imageUrl (string) is required");
     }
-    const { imageUrl, preUpscale } = input as {
+    const { imageUrl, preUpscale, modelTier } = input as {
       imageUrl: string;
       preUpscale?: boolean;
+      modelTier?: string;
     };
     if (imageUrl.length > 15_000_000) {
       throw new Error("Image payload too large (max ~11MB base64)");
@@ -20,10 +21,13 @@ export const removeBackground = createServerFn({ method: "POST" })
     return {
       imageUrl,
       preUpscale: preUpscale === true,
+      // Default to economy if the client sends something unexpected - never
+      // let a malformed/spoofed value silently grant premium for free.
+      modelTier: modelTier === "premium" ? "premium" : "economy",
     };
   })
   .handler(async ({ data }) => {
     const key = process.env.FALAI_KEY;
     if (!key) throw new Error("FALAI_KEY is not configured");
-    return removeBackgroundWithRembg({ apiKey: key, ...data });
+    return removeBackgroundImpl({ apiKey: key, ...data });
   });
