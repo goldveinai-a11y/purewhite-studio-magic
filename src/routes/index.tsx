@@ -2,6 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { usePersistedCredits } from "@/hooks/use-credits";
 import { useTierLimits, type Tier } from "@/hooks/use-tier-limits";
+import { createPortalSession } from "@/lib/payments.functions";
+import { getStripeEnvironment } from "@/lib/stripe";
 import {
   Upload,
   Sparkles,
@@ -318,6 +320,15 @@ function Hero({
 }) {
   const { tier } = useTierLimits();
 
+  const handleManageSubscription = async () => {
+    const returnUrl = `${window.location.origin}/#studio-workspace`;
+    const environment = getStripeEnvironment();
+    const result = await createPortalSession({ data: { returnUrl, environment } });
+    if ("url" in result) {
+      window.location.href = result.url;
+    }
+  };
+
   return (
     <section
       className="relative overflow-hidden"
@@ -390,6 +401,15 @@ function Hero({
                       Free tier: {credits}/3 credits · Batches over 3 photos require Pro
                     </p>
                   )}
+      {tier !== "free" && (
+        <button
+          type="button"
+          onClick={() => void handleManageSubscription()}
+          className="text-left text-[11px] font-medium text-primary hover:underline"
+        >
+          Manage subscription
+        </button>
+      )}
                 </div>
               </div>
               <div className="grid gap-6 md:grid-cols-[1.4fr_1fr]">
