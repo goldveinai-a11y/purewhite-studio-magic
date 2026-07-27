@@ -221,7 +221,7 @@ function LandingPage() {
       <HowItWorks />
       <UseCases />
       <ComplianceTable />
-      <Pricing onUpgrade={handleUpgrade} />
+      <Pricing onUpgrade={handleUpgrade} onFreeStart={launchStudio} />
       <FAQ />
       <Footer onOpenAmazonGuide={() => setAmazonGuideOpen(true)} />
       <PaywallDialog
@@ -1139,7 +1139,13 @@ function ComplianceTable() {
   );
 }
 
-function Pricing({ onUpgrade }: { onUpgrade: (tier: Tier) => void }) {
+function Pricing({
+  onUpgrade,
+  onFreeStart,
+}: {
+  onUpgrade: (tier: Tier) => void;
+  onFreeStart: () => void;
+}) {
   const tiers = [
     {
       name: "Free Trial",
@@ -1238,9 +1244,11 @@ function Pricing({ onUpgrade }: { onUpgrade: (tier: Tier) => void }) {
               </ul>
               <Button
                 onClick={
-                  t.featured || t.name.startsWith("Lifetime")
-                    ? () => onUpgrade(t.tierKey)
-                    : undefined
+                  t.tierKey === "free"
+                    ? onFreeStart
+                    : t.featured || t.name.startsWith("Lifetime")
+                      ? () => onUpgrade(t.tierKey)
+                      : undefined
                 }
                 disabled={t.disabled}
                 variant={t.featured ? "default" : "outline"}
