@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { usePersistedCredits } from "@/hooks/use-credits";
 import { useTierLimits, type Tier } from "@/hooks/use-tier-limits";
 import { createPortalSession } from "@/lib/payments.functions";
@@ -241,6 +242,20 @@ function LandingPage() {
 }
 
 function Navbar({ onLaunch }: { onLaunch: () => void }) {
+  const [isAuthed, setIsAuthed] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (mounted) setIsAuthed(!!data.user);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setIsAuthed(!!session?.user);
+    });
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
@@ -273,6 +288,14 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
           >
             <Sparkles className="mr-1 h-3 w-3" /> 3 Free Credits
           </Badge>
+          {!isAuthed && (
+            <Link
+              to="/auth"
+              className="whitespace-nowrap text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Sign in
+            </Link>
+          )}
           <Button
             onClick={onLaunch}
             className="rounded-full bg-primary font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
