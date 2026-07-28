@@ -416,6 +416,10 @@ function Hero({
                             : `${credits} free photos left`}
                     </p>
                   )}
+                  <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Lock className="h-3 w-3" />
+                    Your photos never leave your browser
+                  </p>
       {tier !== "free" && (
         <button
           type="button"
