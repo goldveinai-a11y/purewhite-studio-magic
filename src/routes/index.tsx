@@ -268,10 +268,10 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
   };
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
-      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-        <a href="#" className="flex items-center gap-2.5">
+      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-4 sm:gap-3 sm:px-6">
+        <a href="#" className="flex min-w-0 items-center gap-2.5">
           <LogoMark />
-          <span className="font-display text-lg font-bold tracking-tight">
+          <span className="whitespace-nowrap font-display text-base font-bold tracking-tight sm:text-lg">
             PureWhite <span className="text-primary">BG</span>
           </span>
         </a>
@@ -291,7 +291,7 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
             </a>
           ))}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {tier === "free" && (
             <Badge
               variant="secondary"
@@ -305,7 +305,7 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="max-w-[120px] truncate text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  className="max-w-[90px] truncate text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:max-w-[160px] sm:text-sm"
                 >
                   {email ?? "Account"}
                 </button>
@@ -317,16 +317,19 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
           ) : (
             <Link
               to="/auth"
-              className="whitespace-nowrap text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="whitespace-nowrap text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:text-sm"
             >
               Sign in
             </Link>
           )}
           <Button
             onClick={onLaunch}
-            className="rounded-full bg-primary font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
+            size="sm"
+            className="shrink-0 whitespace-nowrap rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95 sm:h-10 sm:px-4 sm:text-sm"
           >
-            Launch Studio <ArrowRight className="ml-1.5 h-4 w-4" />
+            <span className="sm:hidden">Studio</span>
+            <span className="hidden sm:inline">Launch Studio</span>
+            <ArrowRight className="ml-1.5 hidden h-4 w-4 sm:inline-block" />
           </Button>
         </div>
       </nav>
