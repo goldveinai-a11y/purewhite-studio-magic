@@ -268,14 +268,14 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
   };
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
-      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-        <a href="#" className="flex items-center gap-2.5">
+      <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-4 sm:gap-3 sm:px-6">
+        <a href="#" className="flex min-w-0 items-center gap-2.5">
           <LogoMark />
-          <span className="font-display text-lg font-bold tracking-tight">
+          <span className="whitespace-nowrap font-display text-base font-bold tracking-tight sm:text-lg">
             PureWhite <span className="text-primary">BG</span>
           </span>
         </a>
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden items-center gap-6 lg:flex lg:gap-8">
           {[
             ["How It Works", "#how"],
             ["Marketplace Rules", "#rules"],
@@ -291,7 +291,7 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
             </a>
           ))}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {tier === "free" && (
             <Badge
               variant="secondary"
@@ -305,7 +305,7 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="max-w-[120px] truncate text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  className="max-w-[90px] truncate text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:max-w-[160px] sm:text-sm"
                 >
                   {email ?? "Account"}
                 </button>
@@ -317,16 +317,19 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
           ) : (
             <Link
               to="/auth"
-              className="whitespace-nowrap text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="whitespace-nowrap text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:text-sm"
             >
               Sign in
             </Link>
           )}
           <Button
             onClick={onLaunch}
-            className="rounded-full bg-primary font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
+            size="sm"
+            className="shrink-0 whitespace-nowrap rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95 sm:h-10 sm:px-4 sm:text-sm"
           >
-            Launch Studio <ArrowRight className="ml-1.5 h-4 w-4" />
+            <span className="sm:hidden">Studio</span>
+            <span className="hidden sm:inline">Launch Studio</span>
+            <ArrowRight className="ml-1.5 hidden h-4 w-4 sm:inline-block" />
           </Button>
         </div>
       </nav>
@@ -384,13 +387,13 @@ function Hero({
       className="relative overflow-hidden"
       style={{ background: "var(--gradient-hero)" }}
     >
-      <div className="mx-auto max-w-7xl px-6 pb-16 pt-16 md:pt-24">
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-16 sm:px-6 md:pt-24">
         <div className="mx-auto max-w-3xl text-center">
-          <Badge className="mb-6 rounded-full border border-primary/20 bg-white px-4 py-1.5 text-xs font-semibold text-primary shadow-sm hover:bg-white">
-            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+          <Badge className="mb-6 inline-flex max-w-full whitespace-normal rounded-full border border-primary/20 bg-white px-3 py-1.5 text-center text-[11px] font-semibold leading-snug text-primary shadow-sm hover:bg-white sm:px-4 sm:text-xs">
+            <Sparkles className="mr-1.5 h-3.5 w-3.5 shrink-0" />
             100% Amazon Compliant (#FFFFFF) • Auto-Resize 1000×1000px
           </Badge>
-          <h1 className="font-display text-4xl font-extrabold tracking-tight text-foreground md:text-6xl">
+          <h1 className="font-display text-3xl font-extrabold tracking-tight text-foreground [text-wrap:balance] sm:text-4xl md:text-6xl">
             Instant Pure White Backgrounds for{" "}
             <span
               className="bg-clip-text text-transparent"
@@ -399,7 +402,7 @@ function Hero({
               Amazon & E-Commerce
             </span>
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
             Upload one photo or fifty. Every image runs through our AutoCompliance
             Check — exact #FFFFFF and 85%+ frame fill, the two things Amazon's
             algorithm actually checks — so you catch a suppression risk before
@@ -412,7 +415,7 @@ function Hero({
             className="overflow-hidden rounded-2xl border-border/70 bg-white p-0"
             style={{ boxShadow: "var(--shadow-card)" }}
           >
-            <div className="space-y-6 p-6 md:p-8">
+            <div className="space-y-6 p-4 sm:p-6 md:p-8">
               <div className="grid gap-6 md:grid-cols-[1.4fr_1fr]">
                 <div className="flex min-w-0 flex-col gap-4">
                   <StudioWorkspace
@@ -671,12 +674,12 @@ function BeforeAfter({
 
 function TrustBar() {
   return (
-    <section className="border-y border-border/60 bg-muted/40 py-10">
-      <div className="mx-auto max-w-7xl px-6">
+    <section className="border-y border-border/60 bg-muted/40 py-8 sm:py-10">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Formatted for all major marketplaces
         </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-12 gap-y-6 text-foreground/50">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-5 text-foreground/50 sm:gap-x-12 sm:gap-y-6">
           <MarketplaceLogos />
         </div>
         <p className="mt-6 text-center text-sm text-muted-foreground">
@@ -818,6 +821,7 @@ function UseCases() {
     {
       id: "sellers",
       label: "Amazon & E-Commerce Sellers",
+      shortLabel: "Sellers",
       bullets: [
         "100% Amazon algorithm compliant",
         "Instant 1000×1000px square frame fill",
@@ -829,6 +833,7 @@ function UseCases() {
     {
       id: "agencies",
       label: "Agencies & Freelancers",
+      shortLabel: "Agencies",
       bullets: [
         "Bulk processing up to 50 photos in seconds",
         "High-res PNG export",
@@ -840,6 +845,7 @@ function UseCases() {
     {
       id: "photographers",
       label: "Product Photographers",
+      shortLabel: "Photographers",
       bullets: [
         "Clean object isolation without halos",
         "Real soft shadow generation",
@@ -850,32 +856,33 @@ function UseCases() {
     },
   ];
   return (
-    <section className="py-24">
-      <div className="mx-auto max-w-6xl px-6">
+    <section className="py-16 sm:py-24">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             Use Cases
           </p>
-          <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">
+          <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl md:text-4xl">
             Tailored White Background Solutions
           </h2>
         </div>
         <Tabs defaultValue="sellers" className="mt-12">
-          <TabsList className="mx-auto flex h-auto w-full max-w-3xl flex-wrap justify-center gap-2 rounded-full bg-muted/60 p-1.5">
+          <TabsList className="mx-auto flex h-auto w-full max-w-3xl flex-wrap justify-center gap-2 rounded-2xl bg-muted/60 p-1.5 sm:rounded-full">
             {tabs.map((t) => (
               <TabsTrigger
                 key={t.id}
                 value={t.id}
-                className="rounded-full px-4 py-2 text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[var(--shadow-elegant)]"
+                className="whitespace-normal rounded-full px-3 py-2 text-xs font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[var(--shadow-elegant)] sm:px-4 sm:text-sm"
               >
-                {t.label}
+                <span className="sm:hidden">{t.shortLabel}</span>
+                <span className="hidden sm:inline">{t.label}</span>
               </TabsTrigger>
             ))}
           </TabsList>
           {tabs.map((t) => (
             <TabsContent key={t.id} value={t.id} className="mt-10">
               <Card
-                className="grid gap-8 rounded-2xl border-border/70 bg-background p-6 md:grid-cols-2 md:p-10"
+                className="grid gap-8 rounded-2xl border-border/70 bg-background p-4 sm:p-6 md:grid-cols-2 md:p-10"
                 style={{ boxShadow: "var(--shadow-card)" }}
               >
                 <UseCaseCompare
@@ -1066,13 +1073,13 @@ function ValueProps() {
     },
   ];
   return (
-    <section className="py-24">
-      <div className="mx-auto max-w-7xl px-6">
+    <section className="py-16 sm:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             Why PureWhite BG
           </p>
-          <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">
+          <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl md:text-4xl">
             Built for sellers, not photographers
           </h2>
         </div>
@@ -1123,13 +1130,13 @@ function HowItWorks() {
     },
   ];
   return (
-    <section id="how" className="border-y border-border/60 bg-muted/30 py-24">
-      <div className="mx-auto max-w-7xl px-6">
+    <section id="how" className="border-y border-border/60 bg-muted/30 py-16 sm:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             How it works
           </p>
-          <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">
+          <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl md:text-4xl">
             Compliant listings in three steps
           </h2>
         </div>
@@ -1165,13 +1172,13 @@ function ComplianceTable() {
     ["Shopify / Etsy", "Pure White / Custom", "1:1 or 4:3 Ratio", "Uniform margins & padding"],
   ];
   return (
-    <section id="rules" className="py-24">
-      <div className="mx-auto max-w-6xl px-6">
+    <section id="rules" className="py-16 sm:py-24">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             Marketplace Compliance
           </p>
-          <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">
+          <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl md:text-4xl">
             One tool. Every marketplace rule.
           </h2>
         </div>
@@ -1179,7 +1186,7 @@ function ComplianceTable() {
           className="mt-12 overflow-hidden rounded-2xl border border-border/70 bg-background"
           style={{ boxShadow: "var(--shadow-card)" }}
         >
-          <div className="grid grid-cols-2 gap-4 border-b border-border/70 bg-muted/50 px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 border-b border-border/70 bg-muted/50 px-4 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-6 md:grid-cols-4">
             <div>Marketplace</div>
             <div className="hidden md:block">Background</div>
             <div className="hidden md:block">Aspect & Resolution</div>
@@ -1188,14 +1195,14 @@ function ComplianceTable() {
           {rows.map((r, i) => (
             <div
               key={r[0]}
-              className={`grid grid-cols-2 gap-4 px-6 py-5 text-sm md:grid-cols-4 ${
+              className={`grid grid-cols-2 gap-4 px-4 py-4 text-sm sm:px-6 sm:py-5 md:grid-cols-4 ${
                 i !== rows.length - 1 ? "border-b border-border/60" : ""
               }`}
             >
-              <div className="font-semibold text-foreground">{r[0]}</div>
-              <div className="text-muted-foreground">{r[1]}</div>
-              <div className="text-muted-foreground">{r[2]}</div>
-              <div className="text-muted-foreground">{r[3]}</div>
+              <div className="min-w-0 break-words font-semibold text-foreground">{r[0]}</div>
+              <div className="hidden min-w-0 break-words text-muted-foreground md:block">{r[1]}</div>
+              <div className="hidden min-w-0 break-words text-muted-foreground md:block">{r[2]}</div>
+              <div className="min-w-0 break-words text-muted-foreground">{r[3]}</div>
             </div>
           ))}
         </div>
@@ -1261,10 +1268,10 @@ function Pricing({
     },
   ];
   return (
-    <section id="pricing" className="border-y border-border/60 bg-muted/30 py-24">
-      <div className="mx-auto max-w-7xl px-6">
+    <section id="pricing" className="border-y border-border/60 bg-muted/30 py-16 sm:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-display text-3xl font-bold md:text-4xl">
+          <h2 className="font-display text-2xl font-bold sm:text-3xl md:text-4xl">
             Simple, Transparent Pricing for Sellers
           </h2>
           <p className="mt-3 text-muted-foreground">
@@ -1317,7 +1324,7 @@ function Pricing({
                 }
                 disabled={t.disabled}
                 variant={t.featured ? "default" : "outline"}
-                className={`mt-7 w-full rounded-lg font-semibold ${
+                className={`mt-7 h-auto w-full whitespace-normal rounded-lg py-3 text-center font-semibold leading-snug ${
                   t.featured
                     ? "bg-primary text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
                     : ""
@@ -1463,13 +1470,13 @@ function FAQ() {
     },
   ];
   return (
-    <section id="faq" className="py-24">
-      <div className="mx-auto max-w-3xl px-6">
+    <section id="faq" className="py-16 sm:py-24">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <div className="text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             FAQ
           </p>
-          <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">
+          <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl md:text-4xl">
             Answers for serious sellers
           </h2>
         </div>
@@ -1497,8 +1504,8 @@ function FAQ() {
 function Footer({ onOpenAmazonGuide }: { onOpenAmazonGuide: () => void }) {
   const [lang, setLang] = useState("English");
   return (
-    <footer className="border-t border-border/60 bg-muted/30 py-14">
-      <div className="mx-auto max-w-7xl px-6">
+    <footer className="border-t border-border/60 bg-muted/30 py-12 sm:py-14">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
           <div className="max-w-sm">
             <div className="flex items-center gap-2.5">
