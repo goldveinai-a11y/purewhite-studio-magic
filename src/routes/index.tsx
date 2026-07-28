@@ -821,6 +821,7 @@ function UseCases() {
     {
       id: "sellers",
       label: "Amazon & E-Commerce Sellers",
+      shortLabel: "Sellers",
       bullets: [
         "100% Amazon algorithm compliant",
         "Instant 1000×1000px square frame fill",
@@ -832,6 +833,7 @@ function UseCases() {
     {
       id: "agencies",
       label: "Agencies & Freelancers",
+      shortLabel: "Agencies",
       bullets: [
         "Bulk processing up to 50 photos in seconds",
         "High-res PNG export",
@@ -843,6 +845,7 @@ function UseCases() {
     {
       id: "photographers",
       label: "Product Photographers",
+      shortLabel: "Photographers",
       bullets: [
         "Clean object isolation without halos",
         "Real soft shadow generation",
@@ -1070,13 +1073,13 @@ function ValueProps() {
     },
   ];
   return (
-    <section className="py-24">
-      <div className="mx-auto max-w-7xl px-6">
+    <section className="py-16 sm:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             Why PureWhite BG
           </p>
-          <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">
+          <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl md:text-4xl">
             Built for sellers, not photographers
           </h2>
         </div>
@@ -1127,13 +1130,13 @@ function HowItWorks() {
     },
   ];
   return (
-    <section id="how" className="border-y border-border/60 bg-muted/30 py-24">
-      <div className="mx-auto max-w-7xl px-6">
+    <section id="how" className="border-y border-border/60 bg-muted/30 py-16 sm:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             How it works
           </p>
-          <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">
+          <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl md:text-4xl">
             Compliant listings in three steps
           </h2>
         </div>
@@ -1169,13 +1172,13 @@ function ComplianceTable() {
     ["Shopify / Etsy", "Pure White / Custom", "1:1 or 4:3 Ratio", "Uniform margins & padding"],
   ];
   return (
-    <section id="rules" className="py-24">
-      <div className="mx-auto max-w-6xl px-6">
+    <section id="rules" className="py-16 sm:py-24">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             Marketplace Compliance
           </p>
-          <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">
+          <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl md:text-4xl">
             One tool. Every marketplace rule.
           </h2>
         </div>
@@ -1183,7 +1186,7 @@ function ComplianceTable() {
           className="mt-12 overflow-hidden rounded-2xl border border-border/70 bg-background"
           style={{ boxShadow: "var(--shadow-card)" }}
         >
-          <div className="grid grid-cols-2 gap-4 border-b border-border/70 bg-muted/50 px-6 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 border-b border-border/70 bg-muted/50 px-4 py-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-6 md:grid-cols-4">
             <div>Marketplace</div>
             <div className="hidden md:block">Background</div>
             <div className="hidden md:block">Aspect & Resolution</div>
@@ -1192,14 +1195,14 @@ function ComplianceTable() {
           {rows.map((r, i) => (
             <div
               key={r[0]}
-              className={`grid grid-cols-2 gap-4 px-6 py-5 text-sm md:grid-cols-4 ${
+              className={`grid grid-cols-2 gap-4 px-4 py-4 text-sm sm:px-6 sm:py-5 md:grid-cols-4 ${
                 i !== rows.length - 1 ? "border-b border-border/60" : ""
               }`}
             >
-              <div className="font-semibold text-foreground">{r[0]}</div>
-              <div className="text-muted-foreground">{r[1]}</div>
-              <div className="text-muted-foreground">{r[2]}</div>
-              <div className="text-muted-foreground">{r[3]}</div>
+              <div className="min-w-0 break-words font-semibold text-foreground">{r[0]}</div>
+              <div className="hidden min-w-0 break-words text-muted-foreground md:block">{r[1]}</div>
+              <div className="hidden min-w-0 break-words text-muted-foreground md:block">{r[2]}</div>
+              <div className="min-w-0 break-words text-muted-foreground">{r[3]}</div>
             </div>
           ))}
         </div>
@@ -1265,10 +1268,10 @@ function Pricing({
     },
   ];
   return (
-    <section id="pricing" className="border-y border-border/60 bg-muted/30 py-24">
-      <div className="mx-auto max-w-7xl px-6">
+    <section id="pricing" className="border-y border-border/60 bg-muted/30 py-16 sm:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="font-display text-3xl font-bold md:text-4xl">
+          <h2 className="font-display text-2xl font-bold sm:text-3xl md:text-4xl">
             Simple, Transparent Pricing for Sellers
           </h2>
           <p className="mt-3 text-muted-foreground">
@@ -1321,7 +1324,7 @@ function Pricing({
                 }
                 disabled={t.disabled}
                 variant={t.featured ? "default" : "outline"}
-                className={`mt-7 w-full rounded-lg font-semibold ${
+                className={`mt-7 h-auto w-full whitespace-normal rounded-lg py-3 text-center font-semibold leading-snug ${
                   t.featured
                     ? "bg-primary text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
                     : ""
@@ -1467,13 +1470,13 @@ function FAQ() {
     },
   ];
   return (
-    <section id="faq" className="py-24">
-      <div className="mx-auto max-w-3xl px-6">
+    <section id="faq" className="py-16 sm:py-24">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6">
         <div className="text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             FAQ
           </p>
-          <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">
+          <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl md:text-4xl">
             Answers for serious sellers
           </h2>
         </div>
@@ -1501,8 +1504,8 @@ function FAQ() {
 function Footer({ onOpenAmazonGuide }: { onOpenAmazonGuide: () => void }) {
   const [lang, setLang] = useState("English");
   return (
-    <footer className="border-t border-border/60 bg-muted/30 py-14">
-      <div className="mx-auto max-w-7xl px-6">
+    <footer className="border-t border-border/60 bg-muted/30 py-12 sm:py-14">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
           <div className="max-w-sm">
             <div className="flex items-center gap-2.5">

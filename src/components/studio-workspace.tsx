@@ -358,7 +358,7 @@ export function StudioWorkspace({
       />
       {jobs.length === 0 ? (
         <div
-          className="group relative rounded-xl border-2 border-dashed border-primary/30 bg-accent/40 p-8 text-center transition-colors hover:border-primary/60 hover:bg-accent/70"
+          className="group relative rounded-xl border-2 border-dashed border-primary/30 bg-accent/40 p-5 text-center transition-colors hover:border-primary/60 hover:bg-accent/70 sm:p-8"
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
             e.preventDefault();
