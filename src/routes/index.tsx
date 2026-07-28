@@ -291,7 +291,7 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
           {!isAuthed && (
             <Link
               to="/auth"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="whitespace-nowrap text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               Sign in
             </Link>
