@@ -387,13 +387,13 @@ function Hero({
       className="relative overflow-hidden"
       style={{ background: "var(--gradient-hero)" }}
     >
-      <div className="mx-auto max-w-7xl px-6 pb-16 pt-16 md:pt-24">
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-16 sm:px-6 md:pt-24">
         <div className="mx-auto max-w-3xl text-center">
-          <Badge className="mb-6 rounded-full border border-primary/20 bg-white px-4 py-1.5 text-xs font-semibold text-primary shadow-sm hover:bg-white">
-            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+          <Badge className="mb-6 inline-flex max-w-full whitespace-normal rounded-full border border-primary/20 bg-white px-3 py-1.5 text-center text-[11px] font-semibold leading-snug text-primary shadow-sm hover:bg-white sm:px-4 sm:text-xs">
+            <Sparkles className="mr-1.5 h-3.5 w-3.5 shrink-0" />
             100% Amazon Compliant (#FFFFFF) • Auto-Resize 1000×1000px
           </Badge>
-          <h1 className="font-display text-4xl font-extrabold tracking-tight text-foreground md:text-6xl">
+          <h1 className="font-display text-3xl font-extrabold tracking-tight text-foreground [text-wrap:balance] sm:text-4xl md:text-6xl">
             Instant Pure White Backgrounds for{" "}
             <span
               className="bg-clip-text text-transparent"
@@ -402,7 +402,7 @@ function Hero({
               Amazon & E-Commerce
             </span>
           </h1>
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
             Upload one photo or fifty. Every image runs through our AutoCompliance
             Check — exact #FFFFFF and 85%+ frame fill, the two things Amazon's
             algorithm actually checks — so you catch a suppression risk before
@@ -415,7 +415,7 @@ function Hero({
             className="overflow-hidden rounded-2xl border-border/70 bg-white p-0"
             style={{ boxShadow: "var(--shadow-card)" }}
           >
-            <div className="space-y-6 p-6 md:p-8">
+            <div className="space-y-6 p-4 sm:p-6 md:p-8">
               <div className="grid gap-6 md:grid-cols-[1.4fr_1fr]">
                 <div className="flex min-w-0 flex-col gap-4">
                   <StudioWorkspace
@@ -674,12 +674,12 @@ function BeforeAfter({
 
 function TrustBar() {
   return (
-    <section className="border-y border-border/60 bg-muted/40 py-10">
-      <div className="mx-auto max-w-7xl px-6">
+    <section className="border-y border-border/60 bg-muted/40 py-8 sm:py-10">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <p className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Formatted for all major marketplaces
         </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-12 gap-y-6 text-foreground/50">
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-5 text-foreground/50 sm:gap-x-12 sm:gap-y-6">
           <MarketplaceLogos />
         </div>
         <p className="mt-6 text-center text-sm text-muted-foreground">
@@ -853,32 +853,33 @@ function UseCases() {
     },
   ];
   return (
-    <section className="py-24">
-      <div className="mx-auto max-w-6xl px-6">
+    <section className="py-16 sm:py-24">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <p className="text-xs font-semibold uppercase tracking-wider text-primary">
             Use Cases
           </p>
-          <h2 className="mt-2 font-display text-3xl font-bold md:text-4xl">
+          <h2 className="mt-2 font-display text-2xl font-bold sm:text-3xl md:text-4xl">
             Tailored White Background Solutions
           </h2>
         </div>
         <Tabs defaultValue="sellers" className="mt-12">
-          <TabsList className="mx-auto flex h-auto w-full max-w-3xl flex-wrap justify-center gap-2 rounded-full bg-muted/60 p-1.5">
+          <TabsList className="mx-auto flex h-auto w-full max-w-3xl flex-wrap justify-center gap-2 rounded-2xl bg-muted/60 p-1.5 sm:rounded-full">
             {tabs.map((t) => (
               <TabsTrigger
                 key={t.id}
                 value={t.id}
-                className="rounded-full px-4 py-2 text-sm font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[var(--shadow-elegant)]"
+                className="whitespace-normal rounded-full px-3 py-2 text-xs font-semibold data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-[var(--shadow-elegant)] sm:px-4 sm:text-sm"
               >
-                {t.label}
+                <span className="sm:hidden">{t.shortLabel}</span>
+                <span className="hidden sm:inline">{t.label}</span>
               </TabsTrigger>
             ))}
           </TabsList>
           {tabs.map((t) => (
             <TabsContent key={t.id} value={t.id} className="mt-10">
               <Card
-                className="grid gap-8 rounded-2xl border-border/70 bg-background p-6 md:grid-cols-2 md:p-10"
+                className="grid gap-8 rounded-2xl border-border/70 bg-background p-4 sm:p-6 md:grid-cols-2 md:p-10"
                 style={{ boxShadow: "var(--shadow-card)" }}
               >
                 <UseCaseCompare
