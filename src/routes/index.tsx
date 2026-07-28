@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { usePersistedCredits } from "@/hooks/use-credits";
 import { useTierLimits, type Tier } from "@/hooks/use-tier-limits";
@@ -1464,15 +1464,30 @@ function Footer({ onOpenAmazonGuide }: { onOpenAmazonGuide: () => void }) {
             <p className="mt-2 text-xs text-muted-foreground">purewhitebg.com</p>
           </div>
           <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
-            {["Terms of Service", "Privacy Policy", "Support Contact"].map((l) => (
-              <a
-                key={l}
-                href="#"
-                className="font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {l}
-              </a>
-            ))}
+            <Link
+              to="/terms"
+              className="font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Terms of Service
+            </Link>
+            <Link
+              to="/privacy"
+              className="font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              to="/refund"
+              className="font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Refund Policy
+            </Link>
+            <a
+              href="mailto:hello@purewhitebg.com"
+              className="font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Support Contact
+            </a>
             <button
               onClick={onOpenAmazonGuide}
               className="font-medium text-muted-foreground transition-colors hover:text-foreground"
