@@ -1,7 +1,10 @@
-Проверил код: в `StudioWorkspace` счётчик уже обёрнут в `tier === "free"`, но в блоке настроек на главной странице всё ещё всегда показывается строка `Free tier: {credits}/3 credits`.
+В навбаре главной страницы (`src/routes/index.tsx`, компонент `Navbar`) добавить видимое состояние для залогиненного пользователя, чтобы кнопка не "исчезала".
 
-План правки:
-1. В `src/routes/index.tsx` подключить `useTierLimits()` в компоненте `Hero`.
-2. Показывать строку `Free tier: {credits}/3 credits · Batches over 3 photos require Pro` только если `tier === "free"`.
-3. Ничего не менять в checkout, pricing, Stripe/payment methods, paywall UI и бизнес-логике.
-4. Проверить поиском, что других видимых счётчиков кредитов для Pro/Lifetime в студии не осталось.
+Правки только в `Navbar`:
+1. Когда `isAuthed === false` — как сейчас: ссылка **Sign in** → `/auth`.
+2. Когда `isAuthed === true` — вместо пустоты показать простое меню:
+   - Кнопка-триггер с email пользователя (или первой буквой в круглом аватаре, если email длинный).
+   - Dropdown с одним пунктом **Log out** → `supabase.auth.signOut()` + `navigate({ to: "/auth", replace: true })` (используем существующий `DropdownMenu` из shadcn).
+3. Заодно скрыть бейдж **"3 Free Credits"** для платных тиров: подключить `useTierLimits()` и обернуть `<Badge>` в `{tier === "free" && ...}`.
+
+Ничего больше не трогаем: layout, spacing, Launch Studio, остальные страницы — без изменений. Мобилка 375px остаётся: email в триггере обрезаем через `max-w-[120px] truncate`, чтобы Launch Studio не сжимался.

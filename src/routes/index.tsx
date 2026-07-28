@@ -243,19 +243,29 @@ function LandingPage() {
 
 function Navbar({ onLaunch }: { onLaunch: () => void }) {
   const [isAuthed, setIsAuthed] = useState(false);
+  const [email, setEmail] = useState<string | null>(null);
+  const { tier } = useTierLimits();
+  const navigate = useNavigate();
   useEffect(() => {
     let mounted = true;
     supabase.auth.getUser().then(({ data }) => {
-      if (mounted) setIsAuthed(!!data.user);
+      if (!mounted) return;
+      setIsAuthed(!!data.user);
+      setEmail(data.user?.email ?? null);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
       setIsAuthed(!!session?.user);
+      setEmail(session?.user?.email ?? null);
     });
     return () => {
       mounted = false;
       sub.subscription.unsubscribe();
     };
   }, []);
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    void navigate({ to: "/auth", replace: true });
+  };
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
@@ -282,13 +292,29 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
           ))}
         </div>
         <div className="flex items-center gap-3">
-          <Badge
-            variant="secondary"
-            className="hidden rounded-full border border-primary/20 bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground sm:inline-flex"
-          >
-            <Sparkles className="mr-1 h-3 w-3" /> 3 Free Credits
-          </Badge>
-          {!isAuthed && (
+          {tier === "free" && (
+            <Badge
+              variant="secondary"
+              className="hidden rounded-full border border-primary/20 bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground sm:inline-flex"
+            >
+              <Sparkles className="mr-1 h-3 w-3" /> 3 Free Credits
+            </Badge>
+          )}
+          {isAuthed ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="max-w-[120px] truncate text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {email ?? "Account"}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[10rem]">
+                <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
             <Link
               to="/auth"
               className="whitespace-nowrap text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
