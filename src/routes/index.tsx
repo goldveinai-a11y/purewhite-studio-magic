@@ -275,7 +275,7 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
             PureWhite <span className="text-primary">BG</span>
           </span>
         </a>
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden items-center gap-6 lg:flex lg:gap-8">
           {[
             ["How It Works", "#how"],
             ["Marketplace Rules", "#rules"],
