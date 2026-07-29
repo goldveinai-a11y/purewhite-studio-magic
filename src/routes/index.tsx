@@ -22,6 +22,9 @@ import {
   TrendingUp,
   TrendingDown,
   CreditCard,
+  FileText,
+  LifeBuoy,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
