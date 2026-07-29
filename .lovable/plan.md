@@ -1,66 +1,70 @@
-## Цель
 
-Полный responsive-pass главной страницы. На всех mobile и tablet ширинах ничего не обрезается, не выезжает за экран, не накладывается, не ломает кнопки. Десктоп визуально идентичен.
+## Что делаем
 
-## Что делаю
+Только `Navbar` в `src/routes/index.tsx` + расширение таблицы `entitlements` + запись новых полей в webhook. Больше ничего.
 
-Правки только в двух файлах: `src/routes/index.tsx` и `src/components/studio-workspace.tsx`. Backend, auth, Stripe, обработка фото — не трогаю.
+## 1. БД (миграция)
 
-### 1. Navbar (`Navbar`, index.tsx)
+Добавить в `public.entitlements`:
+- `subscription_status text` (active / trialing / past_due / unpaid / canceled / null)
+- `current_period_end timestamptz`
+- `cancel_at_period_end boolean not null default false`
 
-- `px-6` → `px-4 sm:px-6`, `gap-3` → `gap-2 sm:gap-3`.
-- Логотип: текст "PureWhite BG" не переносится (`whitespace-nowrap`), размер `text-base sm:text-lg`.
-- Email dropdown: `max-w-[120px]` → `max-w-[90px] sm:max-w-[160px]`.
-- Sign in: `text-xs sm:text-sm`, `whitespace-nowrap` уже есть.
-- Кнопка "Launch Studio": `size="sm"` на мобильном, текст "Studio" на <sm, "Launch Studio" на sm+, стрелка `hidden sm:inline`, `whitespace-nowrap`, `shrink-0`.
-- Бейдж "3 Free Credits" уже скрыт на мобильном — оставляю.
+Никаких новых таблиц, RLS/GRANT остаются как есть.
 
-### 2. Hero + встроенный workspace (`Hero`, index.tsx)
+## 2. Webhook — минимальная правка
 
-- Padding: `px-6` → `px-4 sm:px-6`.
-- Card: `p-6 md:p-8` → `p-4 sm:p-6 md:p-8`.
-- Grid `md:grid-cols-[1.4fr_1fr]` уже валится в один столбец на мобиле — ок.
-- H1 `text-4xl md:text-6xl` → `text-3xl sm:text-4xl md:text-6xl`, добавить `break-words`.
-- Badge "100% Amazon Compliant …": разрешить перенос — заменить на `flex-wrap`, убрать одну длинную строку, разбить на две компактные строки через `<span className="hidden sm:inline"> • </span>` + перенос, либо сократить на мобильном. Проще: обернуть в контейнер `whitespace-normal text-center leading-snug` и уменьшить шрифт `text-[11px] sm:text-xs`.
-- Кнопка "Upload your first photo": уже `w-full` — ок, но обернуть текст `whitespace-normal`.
+`src/routes/api/public/payments/webhook.ts`, только `handleSubscriptionUpsert` и `handleSubscriptionDeleted`:
+- upsert записывает `subscription_status = subscription.status`, `cancel_at_period_end`, `current_period_end` (из `items.data[0].current_period_end` с fallback на `subscription.current_period_end`).
+- deleted пишет `subscription_status = 'canceled'`, обнуляет `current_period_end`.
 
-### 3. TrustBar (`TrustBar`)
+Логика тира (`active|trialing → pro`, иначе `free`) не трогается — `past_due` остаётся `tier=pro` (доступ сохраняется), это как раз состояние D.
 
-- `px-6` → `px-4 sm:px-6`.
-- Логотипы: `gap-x-12` слишком широко на мобиле → `gap-x-6 sm:gap-x-12`.
+## 3. Сервер: расширяем `getEntitlements`
 
-### 4. ValueProps / HowItWorks / UseCases / ComplianceTable / Pricing / FAQ / Footer
+В `src/lib/payments.functions.ts` в `getEntitlements` добавить в SELECT новые три поля + `stripe_customer_id`. Тип `Entitlements` расширяется. Ничего больше не меняем — `createPortalSession` уже существует и подходит для всех состояний B/C/D/E.
 
-- Везде `px-6` → `px-4 sm:px-6`.
-- `py-24` → `py-16 sm:py-24` (меньше вертикали на мобиле).
-- Заголовки секций `text-3xl md:text-4xl` → `text-2xl sm:text-3xl md:text-4xl`.
-- ComplianceTable: `px-6 py-5` → `px-4 sm:px-6 py-4 sm:py-5`; убедиться что 2-колоночный мобильный grid не ломается (при необходимости `min-w-0` + `truncate` на ячейках).
-- UseCases `TabsList`: длинные лейблы вроде "Amazon & E-Commerce Sellers" обрезать до короткой версии на мобиле (`<span className="sm:hidden">Sellers</span><span className="hidden sm:inline">Amazon & E-Commerce Sellers</span>`) — иначе на 360px они переносятся некрасиво или вылезают.
-- Pricing: карточки уже `md:grid-cols-3` → на мобиле stack, ок; проверить длинные CTA типа "Upgrade to Pro ($6.99/mo)" — добавить `whitespace-normal text-center` в кнопке.
-- Footer: языковой dropdown, "Trusted by 250,000+ sellers" — оставить `flex-wrap`, проверить визуально.
+## 4. Хедер — новый компонент `AccountMenu`
 
-### 5. Studio workspace (`studio-workspace.tsx`)
+В `src/routes/index.tsx` заменяем текущий блок с `email` (строки ~303–316) на `<AccountMenu email={email} />`. `Sign in` для анонимов и `Launch Studio` не трогаем.
 
-- Drop zone `p-8` → `p-6 sm:p-8`.
-- "Add more" bar уже `flex-wrap` — ок.
-- Actions grid уже `sm:grid-cols-2` — ок.
-- Thumbnails уже `overflow-x-auto` — ок, оставить.
-- Убедиться что `ResultPreview` `aspect-square` не вылезает: должен нормально masштабироваться через `w-full`.
+### Триггер (аватар)
+- `button` фиксированного размера `h-8 w-8 shrink-0 rounded-full bg-primary text-primary-foreground text-xs font-semibold`, показывает первые 2 буквы email в верхнем регистре.
+- Никакого email в строке хедера ни на каком брейкпоинте. Ширина хедера больше не зависит от длины email → mobile-регрессия исключена by construction.
 
-### 6. Глобально
+### Панель (`DropdownMenuContent`)
+- `align="end"`, `sideOffset={8}`, `className="w-[280px] max-w-[calc(100vw-32px)] p-3"` — правый inset 16px обеспечивает `max-w-[calc(100vw-32px)]` + `align="end"` радикс-логикой (uses collision padding по умолчанию).
+- Порядок: email (truncate) → Badge → detail-строка `text-sm text-muted-foreground` → `<DropdownMenuSeparator/>` → primary action (полноширинный `Button`) → `Contact support` (mailto — вытащу адрес из футера: `hi@purewhitebg.com`, проверю в `src/routes/index.tsx` футере) → `Log out`.
+- Esc / outside click — уже в Radix `DropdownMenu`.
 
-- Добавить `overflow-x: hidden` на `body` через `src/styles.css` как safety-net (одна строка в `@layer base`).
+### 6 состояний (в компоненте `AccountMenu`)
 
-## Проверка
+Хук `useAccountPlan()` внутри файла: `useQuery`-like через `useEffect` + локальный state (следуем существующему стилю файла — там уже так делают в `useTierLimits`). Возвращает `{ status: 'loading' | 'error' | 'ready', data? }`.
 
-Playwright на 360×740, 390×844, 430×932, 768×1024, 820×1180, 1280×1800:
+- **F Loading** — email виден, badge/detail/кнопка — скелетоны (`bg-muted animate-pulse` блоки). Никогда не показываем «Free» до ответа сервера.
+- **error** — «Couldn't load plan details» + `Manage subscription` (портал). Никогда не гадаем.
+- **A Free** (`tier==='free'`) — Badge `Free` (variant `outline`), detail «X of 3 free credits left» (X из `usePersistedCredits`), кнопка `Upgrade to Pro` → `location.hash = '#pricing'`.
+- **B Pro active** (`tier==='pro'`, status `active|trialing`, `cancel_at_period_end===false`) — Badge `Pro` (кастомный класс с указанными цветами), detail `Unlimited photos · renews {formatDate(current_period_end)}`, кнопка `Manage subscription` (outline + `CreditCard` icon) → портал.
+- **C Pro ending** (`tier==='pro'`, `cancel_at_period_end===true`) — Badge `Pro · ending` (amber), detail `Access until {date} · won't renew`, кнопка `Manage subscription` (outline) → портал. Слова `renews`/`Free` не появляются.
+- **D Past due** (`subscription_status==='past_due' || 'unpaid'`) — Badge `Past due` (красный), detail `Payment failed — update your card` в `text-destructive`, кнопка `Update payment method` (filled destructive) → портал.
+- **E Lifetime** (`tier==='lifetime'`) — Badge `Lifetime` (teal), detail `Unlimited · no renewal, ever`, кнопка `Billing and invoices` (outline + `FileText` icon) → портал. Слово `subscription` не используется.
 
-- `document.documentElement.scrollWidth <= window.innerWidth` на всех.
-- Скриншоты каждого viewport: navbar, hero, trustbar, use cases, pricing, footer.
-- Проверить кликабельность "Launch Studio", "Sign in", "Upload your first photo".
+Приоритет состояний при выборе: D > C > B > E > A > loading/error.
 
-## Что НЕ трогаю
+Портал: клик → `createPortalSession({ data:{ returnUrl: window.location.origin, environment: getStripeEnvironment() }})` → `window.location.href = url`. Если `stripe_customer_id` нет — primary кнопку не рендерим (только в B/C/D/E; для A это `Upgrade to Pro` и всегда доступно).
 
-- Логика auth, credits, tier, Stripe, обработка фото.
-- Модели, цвета, шрифты бренда.
-- Десктопный вид (≥md визуально идентичен).
+Цвета бейджей — inline-классы Tailwind с произвольными значениями (`bg-[#EEEDFE] text-[#3C3489]` и т.д.), так как это разовое использование и в дизайн-системе токенов под них нет.
+
+## 5. Проверка адаптива (обязательный шаг перед завершением)
+
+Playwright на `http://localhost:8080/` в двух вариантах (аноним и залогинен через injected сессию), на 360 / 390 / 414 / 768 / 1280:
+- `document.documentElement.scrollWidth === window.innerWidth`
+- скриншот хедера
+Если хоть где-то не совпало — сжимаем `gap`/`px` пока не сойдётся; в остальном верстка не тронута, так что регрессии как в прошлый раз не будет (аватар — фиксированные 32px, email из строки убран).
+
+## Технические детали
+
+- Никаких новых зависимостей. Используем существующие `DropdownMenu`, `Button`, `Badge`, иконки `lucide-react` (`CreditCard`, `FileText`, `LifeBuoy`, `LogOut`).
+- `getEntitlements` уже дергается в `useTierLimits` — `AccountMenu` делает свой независимый вызов (проще, не связывает компоненты); один лишний запрос в сессию.
+- Форматирование даты: `new Intl.DateTimeFormat('en-US', { month:'short', day:'numeric', year:'numeric' })`.
+- Файлы, которые редактируем: `src/routes/index.tsx`, `src/lib/payments.functions.ts`, `src/routes/api/public/payments/webhook.ts`, одна миграция БД. Больше — ничего.

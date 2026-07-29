@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePersistedCredits } from "@/hooks/use-credits";
 import { useTierLimits, type Tier } from "@/hooks/use-tier-limits";
-import { createPortalSession } from "@/lib/payments.functions";
+import { createPortalSession, getEntitlements } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import {
   Upload,
@@ -22,6 +22,9 @@ import {
   TrendingUp,
   TrendingDown,
   CreditCard,
+  FileText,
+  LifeBuoy,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +49,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { StudioWorkspace } from "@/components/studio-workspace";
 import heroSneakerBefore from "@/assets/hero-sneaker-before.jpg.asset.json";
@@ -301,19 +305,7 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
             </Badge>
           )}
           {isAuthed ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="max-w-[90px] truncate text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:max-w-[160px] sm:text-sm"
-                >
-                  {email ?? "Account"}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[10rem]">
-                <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <AccountMenu email={email} onLogout={handleLogout} />
           ) : (
             <Link
               to="/auth"
@@ -344,6 +336,304 @@ function LogoMark() {
       style={{ background: "var(--gradient-primary)" }}
     >
       <div className="h-4 w-4 rounded-sm bg-white shadow-sm" />
+    </div>
+  );
+}
+
+type PlanData = {
+  tier: "free" | "pro" | "lifetime";
+  subscription_status: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  stripe_customer_id: string | null;
+};
+
+type PlanFetch =
+  | { status: "loading" }
+  | { status: "error" }
+  | { status: "ready"; data: PlanData };
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "";
+  try {
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }).format(new Date(iso));
+  } catch {
+    return "";
+  }
+}
+
+function AccountMenu({
+  email,
+  onLogout,
+}: {
+  email: string | null;
+  onLogout: () => void;
+}) {
+  const { credits } = usePersistedCredits();
+  const [plan, setPlan] = useState<PlanFetch>({ status: "loading" });
+  const [portalBusy, setPortalBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getEntitlements()
+      .then((res) => {
+        if (cancelled) return;
+        if ("entitlements" in res) {
+          const e = res.entitlements as unknown as PlanData;
+          setPlan({
+            status: "ready",
+            data: {
+              tier: e.tier,
+              subscription_status: e.subscription_status ?? null,
+              current_period_end: e.current_period_end ?? null,
+              cancel_at_period_end: e.cancel_at_period_end ?? false,
+              stripe_customer_id: e.stripe_customer_id ?? null,
+            },
+          });
+        } else {
+          setPlan({ status: "error" });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setPlan({ status: "error" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const openPortal = async () => {
+    if (portalBusy) return;
+    setPortalBusy(true);
+    try {
+      const res = await createPortalSession({
+        data: {
+          returnUrl: window.location.origin,
+          environment: getStripeEnvironment(),
+        },
+      });
+      if ("url" in res) {
+        window.location.href = res.url;
+      } else {
+        setPortalBusy(false);
+      }
+    } catch {
+      setPortalBusy(false);
+    }
+  };
+
+  const initials = (email ?? "?")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .slice(0, 2)
+    .toUpperCase() || "?";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label="Account menu"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+        >
+          {initials}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        collisionPadding={16}
+        className="w-[280px] max-w-[calc(100vw-32px)] p-3"
+      >
+        <p className="truncate text-sm font-medium text-foreground" title={email ?? ""}>
+          {email ?? ""}
+        </p>
+        <div className="mt-2">
+          <AccountPlanBody plan={plan} credits={credits} onPortal={openPortal} portalBusy={portalBusy} />
+        </div>
+        <DropdownMenuSeparator className="my-3" />
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <a href="mailto:hello@purewhitebg.com" className="flex items-center gap-2">
+            <LifeBuoy className="h-4 w-4" />
+            Contact support
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onLogout} className="cursor-pointer">
+          <LogOut className="mr-2 h-4 w-4" />
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function AccountPlanBody({
+  plan,
+  credits,
+  onPortal,
+  portalBusy,
+}: {
+  plan: PlanFetch;
+  credits: number;
+  onPortal: () => void;
+  portalBusy: boolean;
+}) {
+  if (plan.status === "loading") {
+    return (
+      <div className="space-y-2">
+        <div className="h-5 w-16 animate-pulse rounded-full bg-muted" />
+        <div className="h-4 w-48 animate-pulse rounded bg-muted" />
+        <div className="mt-3 h-9 w-full animate-pulse rounded-md bg-muted" />
+      </div>
+    );
+  }
+
+  if (plan.status === "error") {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-muted-foreground">Couldn't load plan details</p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-2 w-full"
+          onClick={onPortal}
+          disabled={portalBusy}
+        >
+          <CreditCard className="mr-2 h-4 w-4" />
+          Manage subscription
+        </Button>
+      </div>
+    );
+  }
+
+  const d = plan.data;
+  const status = d.subscription_status;
+  const isPastDue =
+    d.tier === "pro" && (status === "past_due" || status === "unpaid");
+  const isProEnding =
+    d.tier === "pro" && d.cancel_at_period_end === true && !isPastDue;
+  const isProActive = d.tier === "pro" && !isPastDue && !isProEnding;
+  const hasCustomer = !!d.stripe_customer_id;
+
+  // D — Past due
+  if (isPastDue) {
+    return (
+      <div className="space-y-2">
+        <span className="inline-flex items-center rounded-full bg-[#FCEBEB] px-2.5 py-0.5 text-xs font-medium text-[#791F1F]">
+          Past due
+        </span>
+        <p className="text-sm text-destructive">Payment failed — update your card</p>
+        {hasCustomer && (
+          <Button
+            size="sm"
+            className="mt-2 w-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={onPortal}
+            disabled={portalBusy}
+          >
+            <CreditCard className="mr-2 h-4 w-4" />
+            Update payment method
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // C — Pro ending
+  if (isProEnding) {
+    return (
+      <div className="space-y-2">
+        <span className="inline-flex items-center rounded-full bg-[#FAEEDA] px-2.5 py-0.5 text-xs font-medium text-[#633806]">
+          Pro · ending
+        </span>
+        <p className="text-sm text-muted-foreground">
+          Access until {formatDate(d.current_period_end)} · won't renew
+        </p>
+        {hasCustomer && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 w-full"
+            onClick={onPortal}
+            disabled={portalBusy}
+          >
+            <CreditCard className="mr-2 h-4 w-4" />
+            Manage subscription
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // B — Pro active
+  if (isProActive) {
+    return (
+      <div className="space-y-2">
+        <span className="inline-flex items-center rounded-full bg-[#EEEDFE] px-2.5 py-0.5 text-xs font-medium text-[#3C3489]">
+          Pro
+        </span>
+        <p className="text-sm text-muted-foreground">
+          Unlimited photos · renews {formatDate(d.current_period_end)}
+        </p>
+        {hasCustomer && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 w-full"
+            onClick={onPortal}
+            disabled={portalBusy}
+          >
+            <CreditCard className="mr-2 h-4 w-4" />
+            Manage subscription
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // E — Lifetime
+  if (d.tier === "lifetime") {
+    return (
+      <div className="space-y-2">
+        <span className="inline-flex items-center rounded-full bg-[#E1F5EE] px-2.5 py-0.5 text-xs font-medium text-[#085041]">
+          Lifetime
+        </span>
+        <p className="text-sm text-muted-foreground">Unlimited · no renewal, ever</p>
+        {hasCustomer && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 w-full"
+            onClick={onPortal}
+            disabled={portalBusy}
+          >
+            <FileText className="mr-2 h-4 w-4" />
+            Billing and invoices
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // A — Free
+  const remaining = Math.max(0, Math.min(3, credits));
+  return (
+    <div className="space-y-2">
+      <span className="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+        Free
+      </span>
+      <p className="text-sm text-muted-foreground">
+        {remaining} of 3 free credits left
+      </p>
+      <Button
+        size="sm"
+        className="mt-2 w-full bg-primary text-primary-foreground hover:opacity-95"
+        asChild
+      >
+        <a href="#pricing">Upgrade to Pro</a>
+      </Button>
     </div>
   );
 }

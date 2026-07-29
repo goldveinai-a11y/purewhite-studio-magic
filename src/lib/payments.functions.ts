@@ -14,6 +14,10 @@ type Entitlements = {
   pro_used: number;
   lifetime_used: number;
   pro_period: string | null;
+  subscription_status: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  stripe_customer_id: string | null;
 };
 
 type EntitlementsResult = { entitlements: Entitlements } | { error: string };
@@ -163,7 +167,7 @@ export const getEntitlements = createServerFn({ method: 'GET' })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from('entitlements')
-      .select('tier, extra_pack_balance, pro_used, lifetime_used, pro_period')
+      .select('tier, extra_pack_balance, pro_used, lifetime_used, pro_period, subscription_status, current_period_end, cancel_at_period_end, stripe_customer_id')
       .eq('user_id', userId)
       .maybeSingle();
     if (error) return { error: error.message };
@@ -175,6 +179,10 @@ export const getEntitlements = createServerFn({ method: 'GET' })
           pro_used: 0,
           lifetime_used: 0,
           pro_period: null,
+          subscription_status: null,
+          current_period_end: null,
+          cancel_at_period_end: false,
+          stripe_customer_id: null,
         },
     };
   });
