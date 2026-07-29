@@ -305,19 +305,7 @@ function Navbar({ onLaunch }: { onLaunch: () => void }) {
             </Badge>
           )}
           {isAuthed ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  className="max-w-[90px] truncate text-xs font-medium text-muted-foreground transition-colors hover:text-foreground sm:max-w-[160px] sm:text-sm"
-                >
-                  {email ?? "Account"}
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="min-w-[10rem]">
-                <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <AccountMenu email={email} onLogout={handleLogout} />
           ) : (
             <Link
               to="/auth"
