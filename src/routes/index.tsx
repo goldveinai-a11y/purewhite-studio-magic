@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePersistedCredits } from "@/hooks/use-credits";
 import { useTierLimits, type Tier } from "@/hooks/use-tier-limits";
-import { createPortalSession } from "@/lib/payments.functions";
+import { createPortalSession, getEntitlements } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import {
   Upload,
@@ -46,6 +46,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { StudioWorkspace } from "@/components/studio-workspace";
 import heroSneakerBefore from "@/assets/hero-sneaker-before.jpg.asset.json";
