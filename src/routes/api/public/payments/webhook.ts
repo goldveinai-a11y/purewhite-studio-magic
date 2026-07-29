@@ -125,15 +125,23 @@ async function handleSubscriptionUpsert(subscription: any, isNewSubscription: bo
   if (!userId) return;
   const status = subscription.status;
   const active = status === "active" || status === "trialing";
+  const item = subscription.items?.data?.[0];
+  const periodEndUnix = item?.current_period_end ?? subscription.current_period_end;
+  const periodEndIso = periodEndUnix
+    ? new Date(periodEndUnix * 1000).toISOString()
+    : null;
   await getSupabase()
     .from("entitlements")
     .update({
-      tier: active ? "pro" : "free",
+      tier: active || status === "past_due" || status === "unpaid" ? "pro" : "free",
       stripe_customer_id:
         typeof subscription.customer === "string"
           ? subscription.customer
           : subscription.customer?.id,
       stripe_subscription_id: subscription.id,
+      subscription_status: status,
+      current_period_end: periodEndIso,
+      cancel_at_period_end: subscription.cancel_at_period_end ?? false,
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", userId);
@@ -143,7 +151,6 @@ async function handleSubscriptionUpsert(subscription: any, isNewSubscription: bo
   // bookkeeping, Stripe-internal syncs, etc. — treating every update as a
   // new sale would wildly overcount Pro revenue in GA4).
   if (isNewSubscription && active) {
-    const item = subscription.items?.data?.[0];
     await fireGa4Purchase({
       transactionId: subscription.id,
       product: "pro",
@@ -162,6 +169,9 @@ async function handleSubscriptionDeleted(subscription: any) {
     .update({
       tier: "free",
       stripe_subscription_id: null,
+      subscription_status: "canceled",
+      current_period_end: null,
+      cancel_at_period_end: false,
       updated_at: new Date().toISOString(),
     })
     .eq("user_id", userId);
