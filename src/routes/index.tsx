@@ -69,7 +69,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Batch remove backgrounds to 100% pure white (#FFFFFF) for Amazon, Shopify & eBay. Auto-resize to 1000x1000px, add soft shadows & export ZIP in 5 seconds.",
+          "Batch remove backgrounds to 100% pure white (#FFFFFF) for Amazon, Shopify & eBay. Auto-resize to 1000x1000px, add soft shadows & export as a ready-to-upload ZIP.",
       },
       {
         name: "keywords",
@@ -82,7 +82,7 @@ export const Route = createFileRoute("/")({
       },
       {
         property: "og:description",
-        content: "Batch remove backgrounds to 100% pure white (#FFFFFF) for Amazon, Shopify & eBay. Auto-resize to 1000x1000px, add soft shadows & export ZIP in 5 seconds.",
+        content: "Batch remove backgrounds to 100% pure white (#FFFFFF) for Amazon, Shopify & eBay. Auto-resize to 1000x1000px, add soft shadows & export as a ready-to-upload ZIP.",
       },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://purewhitebg.com" },
@@ -91,7 +91,7 @@ export const Route = createFileRoute("/")({
       { property: "og:image:height", content: "1024" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "PureWhite BG - #1 Amazon Background Remover & Batch Editor" },
-      { name: "twitter:description", content: "Batch remove backgrounds to 100% pure white (#FFFFFF) for Amazon, Shopify & eBay. Auto-resize to 1000x1000px, add soft shadows & export ZIP in 5 seconds." },
+      { name: "twitter:description", content: "Batch remove backgrounds to 100% pure white (#FFFFFF) for Amazon, Shopify & eBay. Auto-resize to 1000x1000px, add soft shadows & export as a ready-to-upload ZIP." },
       { name: "twitter:image", content: "https://purewhitebg.com/__l5e/assets-v1/af8d981c-026a-4cdd-907a-72af6fbf0487/hero-sneaker-after.jpg" },
     ],
     links: [{ rel: "canonical", href: "https://purewhitebg.com" }],
@@ -1650,18 +1650,20 @@ function PaywallDialog({
           </Badge>
           <DialogHeader className="text-left">
             <DialogTitle className="font-display text-2xl font-bold text-white">
-              Unlock Unlimited Batch Processing & ZIP Export
+              Keep Every Listing Compliant — at Scale
             </DialogTitle>
             <DialogDescription className="text-white/80">
-              Upgrade to Pro and process your entire catalog in one click.
+              Upgrade to Pro and turn your whole catalog into Amazon-ready
+              images in one batch.
             </DialogDescription>
           </DialogHeader>
         </div>
         <div className="space-y-3 px-7 py-6">
           {[
-            "Download all 50 photos in 1 click (.ZIP)",
-            "TrueGround Shadows & 1000×1000px Amazon Presets",
-            "Instant processing (under 2 seconds per image)",
+            "Process up to 50 photos per batch, download all as one .ZIP",
+            "Every image auto-checked for #FFFFFF + 85% fill before you upload",
+            "TrueGround Shadows & exact 1000×1000px Amazon presets",
+            "Commercial license — cheaper than a single freelancer photo",
           ].map((b) => (
             <div key={b} className="flex items-start gap-2 text-sm">
               <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />
