@@ -677,7 +677,7 @@ function Hero({
       className="relative overflow-hidden"
       style={{ background: "var(--gradient-hero)" }}
     >
-      <div className="mx-auto max-w-7xl px-4 pb-16 pt-16 sm:px-6 md:pt-24">
+      <div className="mx-auto max-w-7xl px-4 pb-16 pt-8 sm:px-6 md:pt-24">
         <div className="mx-auto max-w-3xl text-center">
           <Badge className="mb-6 inline-flex max-w-full whitespace-normal rounded-full border border-primary/20 bg-white px-3 py-1.5 text-center text-[11px] font-semibold leading-snug text-primary shadow-sm hover:bg-white sm:px-4 sm:text-xs">
             <Sparkles className="mr-1.5 h-3.5 w-3.5 shrink-0" />
@@ -693,14 +693,13 @@ function Hero({
             </span>
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Upload one photo or fifty. Every image runs through our AutoCompliance
-            Check — exact #FFFFFF and 85%+ frame fill, the two things Amazon's
-            algorithm actually checks — so you catch a suppression risk before
-            it costs you a sale, not after.
+            Upload one photo or fifty. Get Amazon-ready images on a pure white
+            background — auto-checked for the exact #FFFFFF and 85% fill rules
+            that get listings suppressed. First 3 free, no signup.
           </p>
         </div>
 
-        <div id="studio-workspace" className="mx-auto mt-12 max-w-5xl scroll-mt-24">
+        <div id="studio-workspace" className="mx-auto mt-6 max-w-5xl scroll-mt-24 md:mt-12">
           <Card
             className="overflow-hidden rounded-2xl border-border/70 bg-white p-0"
             style={{ boxShadow: "var(--shadow-card)" }}
