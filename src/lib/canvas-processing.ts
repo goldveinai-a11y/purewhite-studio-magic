@@ -10,7 +10,13 @@ export type PostProcessOptions = {
 };
 
 const AMAZON_SIZE = 1000;
-const FRAME_FILL = 0.87;
+// Scale the product so its LONG side fills 92% of the canvas. Amazon's spec
+// says the product should "touch or nearly touch all four edges" and
+// recommends scaling to ~88%+ to clear the 85% rule with margin. At 0.92 a
+// moderately rectangular product (up to ~1.08:1) clears 85% on BOTH axes;
+// only strongly elongated shapes fall short on their short axis, which the
+// compliance check now reports honestly instead of faking a pass.
+const FRAME_FILL = 0.92;
 const FEATHER_PX = 1.2;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -775,7 +781,7 @@ export type ComplianceCheck = {
 export type ComplianceResult = {
   passed: boolean;
   backgroundPure: ComplianceCheck;
-  frameFill: ComplianceCheck & { value: number };
+  frameFill: ComplianceCheck & { value: number; status: "pass" | "warn" | "fail" };
 };
 
 function checkAmazonCompliance(
@@ -783,38 +789,80 @@ function checkAmazonCompliance(
   size: number,
   subjectBox: { dx: number; dy: number; drawW: number; drawH: number },
 ): ComplianceResult {
-  const frameFillValue = Math.round(FRAME_FILL * 100);
-  const frameFillPass = subjectBox.drawW > 2 && subjectBox.drawH > 2;
-  const frameFill: ComplianceCheck & { value: number } = {
-    pass: frameFillPass,
-    value: frameFillPass ? frameFillValue : 0,
-    detail: frameFillPass
-      ? `Subject fills ${frameFillValue}% of frame (Amazon minimum: 85%)`
-      : "No product detected in frame - check the source photo",
+  // Hybrid compliance model (matches how Amazon's spec is most commonly
+  // stated vs. how its algorithm actually measures):
+  //  - Most Amazon guidance says "product fills 85%+ of the frame" and
+  //    means the LONG axis. We scale the long axis to 92%, so that always
+  //    clears 85% → the primary pass signal.
+  //  - BUT Amazon's automated check can evaluate the SHORT axis too, and a
+  //    strongly elongated product (a side-on shoe, a bottle) fills far less
+  //    on its short axis. Rather than fake a green pass (the old bug) or
+  //    hard-fail every rectangular product, we surface a WARN: the long
+  //    axis is compliant, but the shape is elongated and Amazon *may* judge
+  //    it on the short axis. This is honest and still lets the user ship.
+  const AMAZON_MIN_FILL = 85;
+  const WARN_SHORT_AXIS = 78; // short axis this low → elongated, worth a heads-up
+  const longFill = Math.round(Math.max((subjectBox.drawW / size) * 100, (subjectBox.drawH / size) * 100));
+  const shortFill = Math.round(Math.min((subjectBox.drawW / size) * 100, (subjectBox.drawH / size) * 100));
+  const hasSubject = subjectBox.drawW > 2 && subjectBox.drawH > 2;
+
+  let fillStatus: "pass" | "warn" | "fail";
+  let fillDetail: string;
+  if (!hasSubject) {
+    fillStatus = "fail";
+    fillDetail = "No product detected in frame — check the source photo";
+  } else if (longFill < AMAZON_MIN_FILL) {
+    // Shouldn't happen at FRAME_FILL 0.92, but guard anyway.
+    fillStatus = "fail";
+    fillDetail = `Subject fills only ${longFill}% of frame — Amazon needs 85%. Crop the source tighter.`;
+  } else if (shortFill < WARN_SHORT_AXIS) {
+    fillStatus = "warn";
+    fillDetail = `Long side fills ${longFill}% ✓ — but this is an elongated shape (short side ${shortFill}%). Amazon usually accepts this, but for a strict category you can crop the source closer to a square.`;
+  } else {
+    fillStatus = "pass";
+    fillDetail = `Subject fills ${longFill}% of frame (Amazon minimum: 85%)`;
+  }
+
+  const frameFill: ComplianceCheck & { value: number; status: "pass" | "warn" | "fail" } = {
+    // A warn is still a "soft pass" for the overall passed flag — the image
+    // is shippable; the warning is advisory, not a block.
+    pass: fillStatus === "pass" || fillStatus === "warn",
+    status: fillStatus,
+    value: hasSubject ? longFill : 0,
+    detail: fillDetail,
   };
 
   const imageData = ctx.getImageData(0, 0, size, size);
   const data = imageData.data;
-  const margin = 1;
-  const left = Math.max(0, Math.floor(subjectBox.dx) - margin);
-  const top = Math.max(0, Math.floor(subjectBox.dy) - margin);
-  const right = Math.min(size, Math.ceil(subjectBox.dx + subjectBox.drawW) + margin);
-  const bottom = Math.min(size, Math.ceil(subjectBox.dy + subjectBox.drawH) + margin);
-
+  // Check the background band ABOVE the product only. The soft contact
+  // shadow legitimately paints faint grey pixels below and around the
+  // product's base (Amazon permits a natural contact shadow), so scanning
+  // the whole frame would false-fail every shadowed export. The top band is
+  // guaranteed shadow-free, and an off-white FILL — the thing Amazon
+  // actually suppresses — is uniform across the whole canvas, so if the top
+  // is contaminated the fill is bad, and if the top is pure the fill is
+  // pure. This isolates "is the background truly white" from "is there a
+  // shadow".
+  const scanBottom = Math.max(0, Math.floor(subjectBox.dy) - 2);
   let contaminated = 0;
+  let scanned = 0;
   let firstX = -1;
   let firstY = -1;
-  for (let y = 0; y < size; y++) {
-    const insideSubjectRow = y >= top && y < bottom;
+  for (let y = 0; y < scanBottom; y++) {
     for (let x = 0; x < size; x++) {
-      if (insideSubjectRow && x >= left && x < right) continue;
       const i = (y * size + x) * 4;
       const r = data[i];
       const g = data[i + 1];
       const b = data[i + 2];
-      const isWhite = r === 255 && g === 255 && b === 255;
-      const isNeutralGray = Math.abs(r - g) <= 2 && Math.abs(g - b) <= 2 && Math.abs(r - b) <= 2;
-      if (!isWhite && !isNeutralGray) {
+      // Amazon requires EXACT RGB 255,255,255. "Off-white" (250,250,250),
+      // light grey, and any near-white are the #1 cause of main-image
+      // suppression — so the check must flag ANY pixel that isn't pure
+      // white. The previous `isNeutralGray` shortcut passed all greys (even
+      // black), making the background check useless. Allow only a 1-level
+      // tolerance to absorb canvas anti-aliasing, NOT to permit off-white.
+      const isPureWhite = r >= 254 && g >= 254 && b >= 254;
+      scanned++;
+      if (!isPureWhite) {
         contaminated++;
         if (firstX === -1) {
           firstX = x;
@@ -823,13 +871,15 @@ function checkAmazonCompliance(
       }
     }
   }
-
+  // If there's no band above the product (product touches the top edge),
+  // we can't sample a shadow-free region — treat as pure rather than
+  // false-fail, since the white fill itself is always drawn as #FFFFFF.
   const backgroundPure: ComplianceCheck = {
-    pass: contaminated === 0,
+    pass: scanned === 0 || contaminated === 0,
     detail:
-      contaminated === 0
-        ? "Background is pure white (RGB 255,255,255) with no stray color"
-        : `${contaminated} background pixel(s) are not pure white or neutral (first near ${firstX},${firstY})`,
+      scanned === 0 || contaminated === 0
+        ? "Background is pure white (RGB 255,255,255)"
+        : `${contaminated} background pixel(s) are not pure white (first near ${firstX},${firstY}) — Amazon requires exact RGB 255,255,255 and suppresses off-white`,
   };
 
   return {

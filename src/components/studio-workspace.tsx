@@ -513,13 +513,19 @@ function ResultPreview({ job }: { job: Job | undefined }) {
           </span>
           <span
             className={`rounded-md px-2 py-0.5 text-[10px] font-semibold text-white ${
-              job.compliance.frameFill.pass ? "bg-emerald-600" : "bg-amber-500"
+              job.compliance.frameFill.status === "pass"
+                ? "bg-emerald-600"
+                : job.compliance.frameFill.status === "warn"
+                  ? "bg-amber-500"
+                  : "bg-red-500"
             }`}
             title={job.compliance.frameFill.detail}
           >
-            {job.compliance.frameFill.pass
+            {job.compliance.frameFill.status === "pass"
               ? `✓ ${job.compliance.frameFill.value}% fill`
-              : "⚠ Fill low"}
+              : job.compliance.frameFill.status === "warn"
+                ? `⚠ ${job.compliance.frameFill.value}% (elongated)`
+                : "✕ Fill too low"}
           </span>
         </div>
       )}
