@@ -20,7 +20,14 @@ import { removeBackgroundWithRembg, type RemoveBackgroundInput } from "./process
  * actually exploited.
  */
 const ANON_WINDOW_MS = 10 * 60 * 1000;
-const ANON_MAX_PER_WINDOW = 12;
+// Free tier allows 3 photos, but users retry, re-upload, and open the tool
+// more than once in a 10-minute window. 12 was far too low — a single
+// legitimate free user could trip it, and (worse) when the IP couldn't be
+// resolved everyone shared one "unknown" bucket and collectively hit the
+// cap after 12 photos site-wide. Raised to a level that only a scripted
+// abuser reaches, and the unknown-IP case now bypasses the limiter instead
+// of trapping real users in a shared bucket.
+const ANON_MAX_PER_WINDOW = 40;
 const anonHits = new Map<string, number[]>();
 
 function anonRateLimitOk(ip: string): boolean {
@@ -42,6 +49,12 @@ function anonRateLimitOk(ip: string): boolean {
   return true;
 }
 
+// Must match the client-side MAX_FILE_BYTES (20MB) and the "Max 20MB per
+// file" promise in the UI. Base64 inflates bytes by ~33%, so a 20MB binary
+// arrives as ~27MB of string — size the server ceiling from that, not from
+// an 11MB assumption that silently rejected valid in-spec uploads.
+const MAX_IMAGE_URL_LENGTH = 28_000_000;
+
 export const removeBackground = createServerFn({ method: "POST" })
   .inputValidator((input: unknown): RemoveBackgroundInput => {
     if (
@@ -52,8 +65,8 @@ export const removeBackground = createServerFn({ method: "POST" })
       throw new Error("imageUrl (string) is required");
     }
     const { imageUrl } = input as { imageUrl: string };
-    if (imageUrl.length > 15_000_000) {
-      throw new Error("Image payload too large (max ~11MB base64)");
+    if (imageUrl.length > MAX_IMAGE_URL_LENGTH) {
+      throw new Error("Image payload too large (max 20MB per file)");
     }
     return { imageUrl };
   })
@@ -68,8 +81,14 @@ export const removeBackground = createServerFn({ method: "POST" })
         const ip =
           request?.headers?.get("cf-connecting-ip") ??
           request?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-          "unknown";
-        if (!anonRateLimitOk(ip)) {
+          null;
+        // CRITICAL: only rate-limit when we can actually identify the caller.
+        // If the platform doesn't forward an IP header, every anonymous
+        // visitor would otherwise collapse into one shared bucket and the
+        // whole site would lock out after ~40 photos total. A missing IP
+        // means "can't attribute" — so we let the request through rather
+        // than punishing real users for an infrastructure gap.
+        if (ip && !anonRateLimitOk(ip)) {
           throw new Error(
             "Too many requests from this connection. Please slow down or sign up for a Pro account.",
           );
