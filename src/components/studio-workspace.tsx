@@ -417,12 +417,38 @@ export function StudioWorkspace({
       )}
 
       {jobs.length > 0 && (
-        <div className="mt-6 space-y-5">
+        <div className="mt-6 flex flex-col gap-5">
           {/* Large full-width preview */}
-          <ResultPreview job={active} />
+          <div className="order-1">
+            <ResultPreview job={active} />
+          </div>
+
+          {/* Actions — on mobile these sit right under the preview (order-2)
+              so a phone user sees "Download" without scrolling past the whole
+              batch queue, which was costing ~60% of processed photos never
+              being downloaded. On desktop everything fits above the fold, so
+              the visual order there is unchanged (queue then actions via
+              sm:order). */}
+          <div className="order-2 grid gap-2 sm:order-3 sm:grid-cols-2">
+            <Button
+              variant="outline"
+              className="w-full justify-center rounded-lg border-border/70 font-medium"
+              onClick={downloadOne}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download Single PNG (High-Res)
+            </Button>
+            <Button
+              className="w-full justify-center rounded-lg bg-primary font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
+              onClick={downloadZip}
+            >
+              <Package className="mr-2 h-4 w-4" />
+              Download All as .ZIP ({doneJobs.length})
+            </Button>
+          </div>
 
           {/* Horizontal thumbnail queue */}
-          <div className="space-y-2">
+          <div className="order-3 space-y-2 sm:order-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Batch Queue ({jobs.length})
@@ -444,25 +470,6 @@ export function StudioWorkspace({
               ))}
             </div>
           </div>
-
-          {/* Actions */}
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Button
-              variant="outline"
-              className="w-full justify-center rounded-lg border-border/70 font-medium"
-              onClick={downloadOne}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download Single PNG (High-Res)
-            </Button>
-            <Button
-              className="w-full justify-center rounded-lg bg-primary font-semibold text-primary-foreground shadow-[var(--shadow-elegant)] hover:opacity-95"
-              onClick={downloadZip}
-            >
-              <Package className="mr-2 h-4 w-4" />
-              Download All as .ZIP ({doneJobs.length})
-            </Button>
-          </div>
         </div>
       )}
     </>
@@ -474,7 +481,7 @@ function ResultPreview({ job }: { job: Job | undefined }) {
   const showResult = job.status === "done" && job.resultUrl;
   return (
     <div
-      className="relative aspect-square w-full overflow-hidden rounded-xl border border-border/70 bg-white"
+      className="relative aspect-square max-h-[52vh] w-full overflow-hidden rounded-xl border border-border/70 bg-white sm:max-h-none"
       style={{ boxShadow: "var(--shadow-card)" }}
     >
       <img
