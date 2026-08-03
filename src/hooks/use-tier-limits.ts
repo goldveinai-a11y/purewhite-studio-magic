@@ -43,7 +43,20 @@ export function useTierLimits() {
     const sync = async () => {
       try {
         const { data: userData } = await supabase.auth.getUser();
-        if (!userData.user) return;
+        if (!userData.user) {
+          // No session → this is a free/anonymous visitor. Make sure we
+          // don't keep showing a stale "pro" from a previous logged-in user
+          // on a shared browser.
+          if (!cancelled) {
+            setTierState("free");
+            try {
+              localStorage.setItem(TIER_KEY, "free");
+            } catch {
+              // ignore
+            }
+          }
+          return;
+        }
         const res = await getEntitlements();
         if (cancelled) return;
         if ("entitlements" in res) {
@@ -65,8 +78,22 @@ export function useTierLimits() {
       }
     };
     void sync();
+
+    // Re-sync whenever the auth state changes, NOT just on mount. This is
+    // what makes cross-device and post-purchase work reliably:
+    //  - Sign in on a NEW device → SIGNED_IN fires → we fetch their real
+    //    tier from the server and flip the UI to Pro without a manual reload
+    //    (previously the one-shot mount sync had already run as "free").
+    //  - OAuth session restores slightly after mount → we still catch it.
+    //  - Return from Stripe with a freshly-written entitlement → the token
+    //    refresh / focus re-triggers a sync so the studio unlocks.
+    //  - Sign out → tier drops back to free immediately.
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      void sync();
+    });
     return () => {
       cancelled = true;
+      sub.subscription.unsubscribe();
     };
   }, []);
 
